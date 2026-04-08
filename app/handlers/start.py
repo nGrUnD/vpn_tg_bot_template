@@ -10,6 +10,7 @@ from app import texts
 from app.config import settings
 from app.keyboards.inline import subscription_keyboard
 from app.services.users import ensure_user, mark_channel_verified
+from app.services.welcome import replace_with_welcome, send_welcome
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +26,14 @@ _ALLOWED_STATUSES = frozenset(
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message) -> None:
+async def cmd_start(message: Message, bot: Bot) -> None:
     if message.from_user is None:
         return
 
     user = await ensure_user(message.from_user)
 
     if user["channel_verified_at"] is not None:
-        await message.answer(texts.START_ALREADY_VERIFIED)
+        await send_welcome(message, bot)
         return
 
     await message.answer(
@@ -49,7 +50,7 @@ async def on_check_subscription(
     if query.from_user is None or query.message is None:
         return
 
-    user = await ensure_user(query.from_user)
+    await ensure_user(query.from_user)
 
     try:
         member = await bot.get_chat_member(
@@ -67,12 +68,4 @@ async def on_check_subscription(
 
     await mark_channel_verified(query.from_user.id)
     await query.answer()
-    try:
-        await query.message.edit_text(
-            texts.CHANNEL_VERIFIED,
-            reply_markup=None,
-        )
-    except TelegramBadRequest as e:
-        if "message is not modified" in str(e).lower():
-            return
-        raise
+    await replace_with_welcome(query, bot)
