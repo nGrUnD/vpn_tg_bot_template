@@ -9,8 +9,8 @@ from aiogram.types import CallbackQuery, Message
 from app import texts
 from app.config import settings
 from app.keyboards.inline import subscription_keyboard
+from app.services.main_menu import replace_subscription_with_main_menu, send_main_menu
 from app.services.users import ensure_user, mark_channel_verified
-from app.services.welcome import replace_with_welcome, send_welcome
 
 logger = logging.getLogger(__name__)
 
@@ -26,14 +26,14 @@ _ALLOWED_STATUSES = frozenset(
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, bot: Bot) -> None:
+async def cmd_start(message: Message) -> None:
     if message.from_user is None:
         return
 
     user = await ensure_user(message.from_user)
 
     if user["channel_verified_at"] is not None:
-        await send_welcome(message, bot)
+        await send_main_menu(message)
         return
 
     await message.answer(
@@ -68,4 +68,4 @@ async def on_check_subscription(
 
     await mark_channel_verified(query.from_user.id)
     await query.answer()
-    await replace_with_welcome(query, bot)
+    await replace_subscription_with_main_menu(query, bot)

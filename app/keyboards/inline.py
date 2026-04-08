@@ -20,8 +20,22 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text="📌 Главное меню",
-                    callback_data="main_menu",
+                    text="👤 Мой профиль",
+                    callback_data="profile",
+                ),
+                InlineKeyboardButton(
+                    text="🛠 Тех поддержка",
+                    callback_data="support",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🎁 Реферальная программа",
+                    callback_data="referral",
+                ),
+                InlineKeyboardButton(
+                    text="📝 Инструкции по подключению",
+                    callback_data="instructions",
                 ),
             ],
         ],

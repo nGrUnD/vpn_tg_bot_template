@@ -1,0 +1,25 @@
+# Пример systemd-юнита, если репозиторий в домашнем каталоге пользователя vpnbot:
+#   /home/vpnbot/vpn_tg_bot_template
+#
+# sudo cp scripts/vpn-tg-bot.service.example /etc/systemd/system/vpn-tg-bot.service
+# Правки: User= и путь к каталогу (или оставь %h — домашний каталог этого User)
+# sudo systemctl daemon-reload && sudo systemctl enable --now vpn-tg-bot.service
+#
+# Это файл-подсказка; systemd читает только .service без .example — скопируй без .example
+
+[Unit]
+Description=RaccsterVPN Telegram bot
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=vpnbot
+Group=vpnbot
+WorkingDirectory=%h/vpn_tg_bot_template
+EnvironmentFile=%h/vpn_tg_bot_template/.env
+ExecStart=%h/vpn_tg_bot_template/venv/bin/python main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

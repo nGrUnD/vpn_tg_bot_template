@@ -9,44 +9,44 @@ from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message
 
 from app import texts
 from app.keyboards.inline import main_menu_keyboard
-from app.paths import WELCOME_IMAGE_PATH
+from app.paths import MAIN_MENU_IMAGE_PATH
 
 logger = logging.getLogger(__name__)
 
 
-async def send_welcome(message: Message, bot: Bot) -> None:
-    """Отправить приветствие с картинкой (новое сообщение)."""
+async def send_main_menu(message: Message) -> None:
+    """Главное меню: картинка + подпись + клавиатура."""
     kb = main_menu_keyboard()
-    path = WELCOME_IMAGE_PATH
+    path = MAIN_MENU_IMAGE_PATH
     if path.is_file():
         await message.answer_photo(
             photo=FSInputFile(path),
-            caption=texts.WELCOME_CAPTION,
+            caption=texts.MAIN_MENU_CAPTION,
             parse_mode=ParseMode.HTML,
             reply_markup=kb,
         )
     else:
-        logger.warning("Файл приветствия не найден: %s", path)
+        logger.warning("Файл главного меню не найден: %s", path)
         await message.answer(
-            texts.WELCOME_CAPTION,
+            texts.MAIN_MENU_CAPTION,
             parse_mode=ParseMode.HTML,
             reply_markup=kb,
         )
 
 
-async def replace_with_welcome(query: CallbackQuery, bot: Bot) -> None:
-    """Заменить сообщение с проверкой подписки на фото с приветствием."""
+async def replace_subscription_with_main_menu(query: CallbackQuery, bot: Bot) -> None:
+    """После проверки подписки — то же сообщение заменить на главное меню."""
     msg = query.message
     if msg is None:
         return
 
     kb = main_menu_keyboard()
-    path = WELCOME_IMAGE_PATH
+    path = MAIN_MENU_IMAGE_PATH
 
     if path.is_file():
         media = InputMediaPhoto(
             media=FSInputFile(path),
-            caption=texts.WELCOME_CAPTION,
+            caption=texts.MAIN_MENU_CAPTION,
             parse_mode=ParseMode.HTML,
         )
         try:
@@ -61,15 +61,15 @@ async def replace_with_welcome(query: CallbackQuery, bot: Bot) -> None:
             await bot.send_photo(
                 chat_id=msg.chat.id,
                 photo=FSInputFile(path),
-                caption=texts.WELCOME_CAPTION,
+                caption=texts.MAIN_MENU_CAPTION,
                 parse_mode=ParseMode.HTML,
                 reply_markup=kb,
             )
             return
 
-    logger.warning("Файл приветствия не найден: %s", path)
+    logger.warning("Файл главного меню не найден: %s", path)
     await msg.edit_text(
-        texts.WELCOME_CAPTION,
+        texts.MAIN_MENU_CAPTION,
         parse_mode=ParseMode.HTML,
         reply_markup=kb,
     )
