@@ -1,1 +1,3 @@
-# Зарезервировано под будущие middleware
+from app.middlewares.threexui import ThreexuiMiddleware
+
+__all__ = ("ThreexuiMiddleware",)

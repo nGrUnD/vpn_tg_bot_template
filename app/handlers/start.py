@@ -7,6 +7,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import CallbackQuery, Message
 
 from app import texts
+from app.callback_safe import safe_answer
 from app.config import settings
 from app.keyboards.inline import subscription_keyboard
 from app.services.users import ensure_user, mark_channel_verified
@@ -59,13 +60,13 @@ async def on_check_subscription(
         )
     except TelegramBadRequest as e:
         logger.warning("get_chat_member failed: %s", e)
-        await query.answer(texts.CHECK_SUBSCRIPTION_FAILED_ALERT, show_alert=True)
+        await safe_answer(query, texts.CHECK_SUBSCRIPTION_FAILED_ALERT, show_alert=True)
         return
 
     if member.status not in _ALLOWED_STATUSES:
-        await query.answer(texts.NOT_SUBSCRIBED_ALERT, show_alert=True)
+        await safe_answer(query, texts.NOT_SUBSCRIBED_ALERT, show_alert=True)
         return
 
     await mark_channel_verified(query.from_user.id)
-    await query.answer()
+    await safe_answer(query)
     await replace_subscription_with_welcome(query, bot)

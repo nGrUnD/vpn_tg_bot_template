@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import asyncpg
@@ -61,4 +62,74 @@ async def mark_channel_verified(telegram_id: int) -> None:
             WHERE telegram_id = $1
             """,
             telegram_id,
+        )
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+async def trial_still_active(telegram_id: int) -> bool:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT trial_expires_at FROM users WHERE telegram_id = $1",
+            telegram_id,
+        )
+    if row is None or row["trial_expires_at"] is None:
+        return False
+    exp: datetime = row["trial_expires_at"]
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    return exp > _utcnow()
+
+
+async def get_trial_subscription_url(telegram_id: int) -> str | None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT trial_subscription_url, trial_expires_at
+            FROM users
+            WHERE telegram_id = $1
+            """,
+            telegram_id,
+        )
+    if row is None or row["trial_expires_at"] is None:
+        return None
+    exp: datetime = row["trial_expires_at"]
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp <= _utcnow():
+        return None
+    url = row["trial_subscription_url"]
+    return str(url).strip() if url else None
+
+
+async def save_trial_access(
+    telegram_id: int,
+    *,
+    client_uuid: str,
+    sub_id: str,
+    days: int,
+    subscription_url: str | None,
+) -> None:
+    pool = await get_pool()
+    expires_at = _utcnow() + timedelta(days=max(days, 1))
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            UPDATE users
+            SET trial_client_uuid = $2,
+                trial_sub_id = $3,
+                trial_expires_at = $4,
+                trial_subscription_url = $5,
+                updated_at = NOW()
+            WHERE telegram_id = $1
+            """,
+            telegram_id,
+            client_uuid,
+            sub_id,
+            expires_at,
+            subscription_url,
         )

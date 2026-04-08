@@ -1,3 +1,5 @@
+import html
+
 from app.ru_plural import days_form
 
 START_NEED_CHANNEL = (
@@ -25,12 +27,18 @@ CHECK_SUBSCRIPTION_FAILED_ALERT = (
 )
 
 
-def trial_connections_caption(days: int) -> str:
+def trial_connections_caption(days: int, subscription_url: str | None = None) -> str:
     d = days_form(days)
-    return (
+    base = (
         "⭐️ <b>Мои подключения</b>\n\n"
         "Доступ: Пробный период ✅\n\n"
         f"Доступ выдан на {days} {d}.\n\n"
+    )
+    if subscription_url and subscription_url.strip():
+        u = html.escape(subscription_url.strip(), quote=True)
+        base += f'📎 <b>Подписка:</b> <a href="{u}">открыть</a>\n\n'
+    base += (
         "Выберите устройство ниже, чтобы открыть страницу подключения. "
         "На странице будут кнопки для автоимпорта в приложение."
     )
+    return base

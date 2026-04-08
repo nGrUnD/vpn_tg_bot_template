@@ -12,7 +12,9 @@ from aiogram.enums import ParseMode
 from app.config import settings
 from app.db import close_db, init_db
 from app.handlers import root_router
+from app.middlewares import ThreexuiMiddleware
 from app.single_instance import acquire_polling_lock
+from app.threexui_client import ThreeXUIClient
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +66,11 @@ async def _run() -> None:
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     dp = Dispatcher()
+    threexui_cfg = settings.threexui_config()
+    threexui_client: ThreeXUIClient | None = (
+        ThreeXUIClient(threexui_cfg) if threexui_cfg is not None else None
+    )
+    dp.update.middleware(ThreexuiMiddleware(threexui_client))
     dp.include_router(root_router)
 
     # Иначе при настроенном webhook Telegram отдаёт конфликт с getUpdates
@@ -74,6 +81,8 @@ async def _run() -> None:
         await dp.start_polling(bot)
     finally:
         await close_db()
+        if threexui_client is not None:
+            await threexui_client.close()
         await bot.session.close()
 
 

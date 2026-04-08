@@ -15,14 +15,23 @@ from app.paths import MY_CONNECTIONS_IMAGE_PATH
 logger = logging.getLogger(__name__)
 
 
-async def apply_trial_connections_screen(query: CallbackQuery, bot: Bot, *, back_to: str) -> None:
+async def apply_trial_connections_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    back_to: str,
+    subscription_url: str | None = None,
+    caption_prefix: str | None = None,
+) -> None:
     """Экран «Мои подключения» после активации пробного периода."""
     msg = query.message
     if msg is None:
         return
 
     days = settings.trial_days
-    caption = texts.trial_connections_caption(days)
+    caption = texts.trial_connections_caption(days, subscription_url=subscription_url)
+    if caption_prefix:
+        caption = caption_prefix.rstrip() + "\n\n" + caption
     kb = trial_connections_keyboard(back_to=back_to)
     path = MY_CONNECTIONS_IMAGE_PATH
 
