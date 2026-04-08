@@ -175,8 +175,11 @@ class ThreeXUIClient:
         limit_ip: int = DEFAULT_IP_LIMIT,
     ) -> ThreeXUIClientInfo:
         """
-        Один клиент (одинаковые id UUID, email, subId) во всех инбаундах панели —
-        подписка в 3x-ui объединяет такого клиента по subId.
+        Один логический trial: один и тот же Xray client id (UUID) и один subId на всех inbounds,
+        чтобы одна ссылка подписки тянула все узлы.
+
+        Email в 3x-ui должен быть уникален на панели, поэтому на каждый inbound свой email
+        (суффикс inbound id + фрагмент subId), иначе addClient даёт Duplicate email.
         """
         await self._ensure_login()
 
@@ -186,32 +189,31 @@ class ThreeXUIClient:
 
         expiry_ts_ms = int((time.time() + expire_days * 24 * 60 * 60) * 1000)
         client_uuid = str(uuid.uuid4())
-        client_email = f"tg_{telegram_id}_trial"
-        display_name = client_email
         sub_id = self._generate_sub_id()
+        sub_tag = sub_id[:16] if len(sub_id) >= 8 else sub_id
+        logical_label = f"tg_{telegram_id}_trial"
         total_bytes = 0 if total_gb <= 0 else int(total_gb) * (1024**3)
-
-        client_obj: dict[str, Any] = {
-            "id": client_uuid,
-            "security": "auto",
-            "password": "",
-            "flow": "",
-            "email": client_email,
-            "limitIp": max(int(limit_ip), 0),
-            "totalGB": total_bytes,
-            "expiryTime": expiry_ts_ms,
-            "enable": True,
-            "tgId": int(telegram_id),
-            "subId": sub_id,
-            "comment": client_email,
-            "reset": 0,
-        }
-
-        settings_str = json.dumps({"clients": [client_obj]}, ensure_ascii=False, separators=(",", ":"))
 
         ok: list[int] = []
         failed: list[tuple[int, str]] = []
         for iid in inbound_ids:
+            inbound_email = f"tg_{telegram_id}_i{iid}_{sub_tag}"
+            client_obj: dict[str, Any] = {
+                "id": client_uuid,
+                "security": "auto",
+                "password": "",
+                "flow": "",
+                "email": inbound_email,
+                "limitIp": max(int(limit_ip), 0),
+                "totalGB": total_bytes,
+                "expiryTime": expiry_ts_ms,
+                "enable": True,
+                "tgId": int(telegram_id),
+                "subId": sub_id,
+                "comment": logical_label,
+                "reset": 0,
+            }
+            settings_str = json.dumps({"clients": [client_obj]}, ensure_ascii=False, separators=(",", ":"))
             try:
                 resp = await self._client.post(
                     "/panel/api/inbounds/addClient",
@@ -221,7 +223,7 @@ class ThreeXUIClient:
                 resp.raise_for_status()
                 body = resp.json()
                 if isinstance(body, dict) and body.get("success") is False:
-                    msg = str(body.get("msg") or body.get("message") or "success=false")
+                    msg = str(body.get("msg") or body.get("message") or "success=false").strip()
                     failed.append((iid, msg))
                     logger.warning("3x-ui addClient inbound=%s: %s", iid, msg)
                 else:
@@ -244,26 +246,27 @@ class ThreeXUIClient:
             subscription_json_url = None
 
         link_inbound = ok[0]
+        email_on_link_inbound = f"tg_{telegram_id}_i{link_inbound}_{sub_tag}"
         config_text = await self._fetch_config_from_subscription(subscription_url)
         if not config_text:
             config_text = await self._build_client_link_from_inbound(
                 inbound_id=link_inbound,
                 client_uuid=client_uuid,
-                client_email=client_email,
+                client_email=email_on_link_inbound,
             )
         if not config_text:
             server = self._config.vless_server
             port = self._config.vless_port
             if server and port is not None:
-                config_text = f"vless://{client_uuid}@{server}:{port}#{client_email}"
+                config_text = f"vless://{client_uuid}@{server}:{port}#{logical_label}"
             else:
-                config_text = f"Подписка: email в панели {client_email}"
-        config_text = self._apply_display_name_to_config(config_text, display_name) or config_text
+                config_text = f"Подписка: {logical_label} (панель 3x-ui)"
+        config_text = self._apply_display_name_to_config(config_text, logical_label) or config_text
 
         return ThreeXUIClientInfo(
             client_id=client_uuid,
             config_text=config_text,
-            remark=client_email,
+            remark=logical_label,
             sub_id=sub_id,
             subscription_url=subscription_url,
             subscription_json_url=subscription_json_url,
