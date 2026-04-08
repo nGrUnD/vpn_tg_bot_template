@@ -36,6 +36,21 @@ async def close_threexui_registry(registry: dict[str, ThreeXUIClient]) -> None:
         await client.close()
 
 
+def threexui_client_for_backend(
+    runtime: ThreexuiRuntime,
+    backend_key: str | None,
+) -> ThreeXUIClient | None:
+    """HTTP-клиент панели по ключу из БД; иначе default, иначе любой из registry."""
+    key = (backend_key or "").strip()
+    if key and key in runtime.registry:
+        return runtime.registry[key]
+    if runtime.default_key in runtime.registry:
+        return runtime.registry[runtime.default_key]
+    if runtime.registry:
+        return next(iter(runtime.registry.values()))
+    return None
+
+
 async def pick_backend_for_new_trial(
     *,
     registry: dict[str, ThreeXUIClient],

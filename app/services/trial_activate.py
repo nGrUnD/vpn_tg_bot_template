@@ -9,10 +9,16 @@ from aiogram.types import CallbackQuery
 
 from app.callback_safe import safe_answer
 from app.config import settings
-from app.services.threexui_backends import ThreexuiRuntime, pick_backend_for_new_trial
+from app.services.threexui_backends import (
+    ThreexuiRuntime,
+    pick_backend_for_new_trial,
+    threexui_client_for_backend,
+)
 from app.services.trial_connections import apply_trial_connections_screen
 from app.services.users import (
+    clear_trial_in_db,
     ensure_user,
+    get_trial_panel_sync_fields,
     get_trial_subscription_url,
     save_trial_access,
     trial_still_active,
@@ -37,9 +43,38 @@ async def run_trial_activation_flow(
     tid = query.from_user.id
 
     if await trial_still_active(tid):
-        sub = await get_trial_subscription_url(tid)
-        await apply_trial_connections_screen(query, bot, back_to=back_to, subscription_url=sub)
-        return
+        skip_to_create = False
+        if threexui_runtime.has_backends:
+            sync_row = await get_trial_panel_sync_fields(tid)
+            uuid_v = str((sync_row or {}).get("trial_client_uuid") or "").strip()
+            bk = (sync_row or {}).get("trial_backend_key")
+            bk_s = str(bk).strip() if bk else ""
+            if uuid_v:
+                panel = threexui_client_for_backend(threexui_runtime, bk_s or None)
+                if panel is None:
+                    logger.warning(
+                        "trial: панель backend=%s не в конфиге, сброс trial в БД (telegram_id=%s)",
+                        bk_s or "(пусто)",
+                        tid,
+                    )
+                    await clear_trial_in_db(tid)
+                    skip_to_create = True
+                else:
+                    on_panel = await panel.trial_client_uuid_seen_on_panel(uuid_v)
+                    if not on_panel:
+                        logger.info(
+                            "trial: UUID %s не найден на панели — сброс БД, пересоздание",
+                            uuid_v,
+                        )
+                        await clear_trial_in_db(tid)
+                        skip_to_create = True
+            else:
+                await clear_trial_in_db(tid)
+                skip_to_create = True
+        if not skip_to_create:
+            sub = await get_trial_subscription_url(tid)
+            await apply_trial_connections_screen(query, bot, back_to=back_to, subscription_url=sub)
+            return
 
     if not threexui_runtime.has_backends:
         await apply_trial_connections_screen(

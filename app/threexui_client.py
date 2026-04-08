@@ -485,5 +485,35 @@ class ThreeXUIClient:
         client_flow = str((target or {}).get("flow") or "").strip()
         return self._build_vless_from_inbound(obj, client_uuid, client_email, client_flow=client_flow)
 
+    async def trial_client_uuid_seen_on_panel(self, client_uuid: str) -> bool:
+        """
+        True — клиент с этим UUID есть хотя бы в одном включённом inbound или панель недоступна
+        (не сбрасывать БД). False — успешно проверили inbounds, клиента нигде нет.
+        """
+        cu = str(client_uuid).strip().lower()
+        if not cu:
+            return True
+        await self._ensure_login()
+        ids = await self.list_inbound_ids(only_enabled=True)
+        if not ids:
+            ids = [self._config.inbound_id]
+        saw_inbound_response = False
+        for iid in ids:
+            try:
+                obj = await self._get_inbound(iid)
+                if obj is None:
+                    continue
+                saw_inbound_response = True
+                for c in self._extract_clients(obj):
+                    cid = str(c.get("id") or "").strip().lower()
+                    if cid == cu:
+                        return True
+            except Exception:
+                logger.debug("trial sync: inbound %s недоступен", iid, exc_info=True)
+                continue
+        if not saw_inbound_response:
+            return True
+        return False
+
     async def close(self) -> None:
         await self._client.aclose()

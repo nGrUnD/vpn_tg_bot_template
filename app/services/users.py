@@ -84,6 +84,47 @@ async def trial_still_active(telegram_id: int) -> bool:
     return exp > _utcnow()
 
 
+async def get_trial_panel_sync_fields(telegram_id: int) -> asyncpg.Record | None:
+    """Поля для сверки с 3x-ui (активный trial по дате)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT trial_client_uuid, trial_backend_key, trial_expires_at
+            FROM users
+            WHERE telegram_id = $1
+            """,
+            telegram_id,
+        )
+    if row is None or row["trial_expires_at"] is None:
+        return None
+    exp: datetime = row["trial_expires_at"]
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp <= _utcnow():
+        return None
+    return row
+
+
+async def clear_trial_in_db(telegram_id: int) -> None:
+    """Сброс trial после удаления клиента в панели или рассинхрона."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            UPDATE users
+            SET trial_client_uuid = NULL,
+                trial_sub_id = NULL,
+                trial_subscription_url = NULL,
+                trial_backend_key = NULL,
+                trial_expires_at = NULL,
+                updated_at = NOW()
+            WHERE telegram_id = $1
+            """,
+            telegram_id,
+        )
+
+
 async def get_trial_subscription_url(telegram_id: int) -> str | None:
     pool = await get_pool()
     async with pool.acquire() as conn:
