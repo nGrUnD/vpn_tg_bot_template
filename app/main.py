@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import sys
 
 import asyncpg
@@ -64,6 +65,10 @@ async def _run() -> None:
     )
     dp = Dispatcher()
     dp.include_router(root_router)
+
+    # Иначе при настроенном webhook Telegram отдаёт конфликт с getUpdates
+    await bot.delete_webhook(drop_pending_updates=False)
+    logger.info("Polling, pid=%s (должен быть один процесс с этим токеном на всех машинах)", os.getpid())
 
     try:
         await dp.start_polling(bot)

@@ -1,16 +1,24 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.config import settings
+from app.ru_plural import trial_button_caption
+
+
+def _device_button(text: str, url: str | None, callback_data: str) -> InlineKeyboardButton:
+    if url:
+        return InlineKeyboardButton(text=text, url=url)
+    return InlineKeyboardButton(text=text, callback_data=callback_data)
 
 
 def welcome_keyboard() -> InlineKeyboardMarkup:
     """После проверки подписки: три кнопки."""
+    days = settings.trial_days
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🩵 Получить 3 дня",
-                    callback_data="trial_3d",
+                    text=trial_button_caption(days),
+                    callback_data="trial_start:welcome",
                 ),
             ],
             [
@@ -31,12 +39,13 @@ def welcome_keyboard() -> InlineKeyboardMarkup:
 
 def main_menu_keyboard() -> InlineKeyboardMarkup:
     """Полное главное меню (после кнопки «Главное меню»)."""
+    days = settings.trial_days
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🩵 Получить 3 дня",
-                    callback_data="trial_3d",
+                    text=trial_button_caption(days),
+                    callback_data="trial_start:main",
                 ),
             ],
             [
@@ -67,6 +76,55 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
             ],
         ],
     )
+
+
+def trial_connections_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    """
+    back_to: «welcome» или «main» — куда ведёт «Назад».
+    """
+    s = settings
+    rows: list[list[InlineKeyboardButton]] = [
+        [
+            _device_button(
+                "Windows/Mac 💻",
+                s.connect_page_windows_url,
+                "conn_windows",
+            ),
+        ],
+        [
+            _device_button(
+                "iPhone 🍏",
+                s.connect_page_iphone_url,
+                "conn_iphone",
+            ),
+        ],
+        [
+            _device_button(
+                "Android 📱",
+                s.connect_page_android_url,
+                "conn_android",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="🔎 Не работает VPN?",
+                callback_data="vpn_troubleshoot",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="📝 Инструкции по подключению",
+                callback_data="instructions",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=f"trial_back:{back_to}",
+            ),
+        ],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def subscription_keyboard() -> InlineKeyboardMarkup:

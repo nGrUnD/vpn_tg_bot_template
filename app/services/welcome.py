@@ -14,6 +14,43 @@ from app.paths import WELCOME_IMAGE_PATH
 logger = logging.getLogger(__name__)
 
 
+async def apply_welcome_screen_to_message(msg: Message, bot: Bot) -> None:
+    """Показать welcome (фото + текст + клавиатура) вместо текущего сообщения."""
+    kb = welcome_keyboard()
+    path = WELCOME_IMAGE_PATH
+
+    if path.is_file():
+        media = InputMediaPhoto(
+            media=FSInputFile(path),
+            caption=texts.WELCOME_CAPTION,
+            parse_mode=ParseMode.HTML,
+        )
+        try:
+            await msg.edit_media(media=media, reply_markup=kb)
+            return
+        except TelegramBadRequest as e:
+            logger.info("edit_media welcome не удался (%s), отправляю новое сообщение", e)
+            try:
+                await msg.delete()
+            except TelegramBadRequest:
+                pass
+            await bot.send_photo(
+                chat_id=msg.chat.id,
+                photo=FSInputFile(path),
+                caption=texts.WELCOME_CAPTION,
+                parse_mode=ParseMode.HTML,
+                reply_markup=kb,
+            )
+            return
+
+    logger.warning("Файл приветствия не найден: %s", path)
+    await msg.edit_text(
+        texts.WELCOME_CAPTION,
+        parse_mode=ParseMode.HTML,
+        reply_markup=kb,
+    )
+
+
 async def send_welcome(message: Message) -> None:
     """Приветствие после подписки или /start у подтверждённого пользователя."""
     kb = welcome_keyboard()
@@ -39,37 +76,12 @@ async def replace_subscription_with_welcome(query: CallbackQuery, bot: Bot) -> N
     msg = query.message
     if msg is None:
         return
+    await apply_welcome_screen_to_message(msg, bot)
 
-    kb = welcome_keyboard()
-    path = WELCOME_IMAGE_PATH
 
-    if path.is_file():
-        media = InputMediaPhoto(
-            media=FSInputFile(path),
-            caption=texts.WELCOME_CAPTION,
-            parse_mode=ParseMode.HTML,
-        )
-        try:
-            await msg.edit_media(media=media, reply_markup=kb)
-            return
-        except TelegramBadRequest as e:
-            logger.info("edit_media не удался (%s), отправляю новое сообщение", e)
-            try:
-                await msg.delete()
-            except TelegramBadRequest:
-                pass
-            await bot.send_photo(
-                chat_id=msg.chat.id,
-                photo=FSInputFile(path),
-                caption=texts.WELCOME_CAPTION,
-                parse_mode=ParseMode.HTML,
-                reply_markup=kb,
-            )
-            return
-
-    logger.warning("Файл приветствия не найден: %s", path)
-    await msg.edit_text(
-        texts.WELCOME_CAPTION,
-        parse_mode=ParseMode.HTML,
-        reply_markup=kb,
-    )
+async def show_welcome_on_message(query: CallbackQuery, bot: Bot) -> None:
+    """Вернуться с экрана «Мои подключения» на welcome."""
+    msg = query.message
+    if msg is None:
+        return
+    await apply_welcome_screen_to_message(msg, bot)

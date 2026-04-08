@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     # Только для серверов с обязательным TLS: DATABASE_SSL=require
     database_ssl_require: bool = Field(default=False, validation_alias="DATABASE_SSL")
 
+    trial_days: int = Field(default=3, ge=1, le=365, validation_alias="TRIAL_DAYS")
+
+    connect_page_windows_url: str | None = Field(default=None, validation_alias="CONNECT_PAGE_WINDOWS_URL")
+    connect_page_iphone_url: str | None = Field(default=None, validation_alias="CONNECT_PAGE_IPHONE_URL")
+    connect_page_android_url: str | None = Field(default=None, validation_alias="CONNECT_PAGE_ANDROID_URL")
+
     @field_validator("database_ssl_require", mode="before")
     @classmethod
     def coerce_database_ssl_require(cls, v: object) -> bool:
@@ -40,6 +46,19 @@ class Settings(BaseSettings):
         if v.startswith("postgresql+asyncpg://"):
             return v.replace("postgresql+asyncpg://", "postgresql://", 1)
         return v
+
+    @field_validator(
+        "connect_page_windows_url",
+        "connect_page_iphone_url",
+        "connect_page_android_url",
+        mode="before",
+    )
+    @classmethod
+    def empty_url_to_none(cls, v: object) -> str | None:
+        if v is None:
+            return None
+        s = str(v).strip()
+        return s if s else None
 
 
 settings = Settings()
