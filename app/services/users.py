@@ -113,6 +113,7 @@ async def save_trial_access(
     sub_id: str,
     days: int,
     subscription_url: str | None,
+    backend_key: str,
 ) -> None:
     pool = await get_pool()
     expires_at = _utcnow() + timedelta(days=max(days, 1))
@@ -124,6 +125,7 @@ async def save_trial_access(
                 trial_sub_id = $3,
                 trial_expires_at = $4,
                 trial_subscription_url = $5,
+                trial_backend_key = $6,
                 updated_at = NOW()
             WHERE telegram_id = $1
             """,
@@ -132,4 +134,5 @@ async def save_trial_access(
             sub_id,
             expires_at,
             subscription_url,
+            backend_key,
         )

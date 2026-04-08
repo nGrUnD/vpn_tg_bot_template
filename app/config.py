@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 
 from pydantic import Field, field_validator
@@ -6,14 +7,96 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 @dataclass(frozen=True)
 class ThreeXUIConfig:
-    """Параметры одной панели 3x-ui (MHSanaei/3x-ui)."""
+    """Одна панель 3x-ui (MHSanaei/3x-ui). Несколько панелей — через THREEXUI_BACKENDS_JSON."""
 
+    key: str
     base_url: str
     username: str
     password: str
     vless_server: str | None = None
     vless_port: int | None = None
     inbound_id: int = 1
+    weight: int = 1
+    enabled: bool = True
+    title: str | None = None
+
+
+def _parse_bool(value: object, default: bool = True) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _backend_from_mapping(data: dict, fallback_key: str) -> ThreeXUIConfig:
+    key = str(data.get("key") or fallback_key).strip() or fallback_key
+    base_url = str(data.get("base_url") or data.get("baseUrl") or "").strip().rstrip("/")
+    username = str(data.get("username") or "").strip()
+    password = str(data.get("password") or "").strip()
+    if not base_url or not username or not password:
+        raise ValueError(f"ThreeXUI backend '{key}': нужны base_url, username, password")
+    vless_server = str(data.get("vless_server") or data.get("vlessServer") or "").strip() or None
+    vless_port_raw = data.get("vless_port", data.get("vlessPort"))
+    try:
+        vless_port = int(vless_port_raw) if vless_port_raw not in (None, "") else None
+    except (TypeError, ValueError):
+        vless_port = None
+    inbound_raw = data.get("inbound_id", data.get("inboundId", 1))
+    try:
+        inbound_id = max(int(inbound_raw), 1)
+    except (TypeError, ValueError):
+        inbound_id = 1
+    weight_raw = data.get("weight", 1)
+    try:
+        weight = max(int(weight_raw), 1)
+    except (TypeError, ValueError):
+        weight = 1
+    return ThreeXUIConfig(
+        key=key,
+        title=str(data.get("title") or key).strip() or key,
+        base_url=base_url,
+        username=username,
+        password=password,
+        vless_server=vless_server,
+        vless_port=vless_port,
+        inbound_id=inbound_id,
+        enabled=_parse_bool(data.get("enabled"), True),
+        weight=weight,
+    )
+
+
+def _parse_threexui_backends_json(raw_json: str) -> dict[str, ThreeXUIConfig]:
+    try:
+        parsed = json.loads(raw_json)
+    except json.JSONDecodeError as exc:
+        raise ValueError("THREEXUI_BACKENDS_JSON: невалидный JSON") from exc
+    if isinstance(parsed, dict):
+        items: list[dict] = []
+        for k, value in parsed.items():
+            if not isinstance(value, dict):
+                raise ValueError("THREEXUI_BACKENDS_JSON: каждый бэкенд должен быть объектом")
+            merged = dict(value)
+            merged.setdefault("key", k)
+            items.append(merged)
+    elif isinstance(parsed, list):
+        items = parsed
+    else:
+        raise ValueError("THREEXUI_BACKENDS_JSON: ожидается массив или объект")
+    backends: dict[str, ThreeXUIConfig] = {}
+    for index, item in enumerate(items, start=1):
+        if not isinstance(item, dict):
+            raise ValueError("THREEXUI_BACKENDS_JSON: каждый элемент должен быть объектом")
+        backend = _backend_from_mapping(item, fallback_key=f"backend_{index}")
+        backends[backend.key] = backend
+    if not backends:
+        raise ValueError("THREEXUI_BACKENDS_JSON: нужен хотя бы один бэкенд")
+    return backends
 
 
 class Settings(BaseSettings):
@@ -35,11 +118,13 @@ class Settings(BaseSettings):
         validation_alias="CHANNEL_URL",
     )
 
-    # Только для серверов с обязательным TLS: DATABASE_SSL=require
     database_ssl_require: bool = Field(default=False, validation_alias="DATABASE_SSL")
 
     trial_days: int = Field(default=3, ge=1, le=365, validation_alias="TRIAL_DAYS")
     trial_traffic_gb: int = Field(default=0, ge=0, validation_alias="TRIAL_TRAFFIC_GB")
+
+    threexui_backends_json: str | None = Field(default=None, validation_alias="THREEXUI_BACKENDS_JSON")
+    threexui_default_key: str | None = Field(default=None, validation_alias="THREEXUI_DEFAULT_KEY")
 
     threexui_base_url: str | None = Field(default=None, validation_alias="THREEXUI_BASE_URL")
     threexui_username: str | None = Field(default=None, validation_alias="THREEXUI_USERNAME")
@@ -82,23 +167,45 @@ class Settings(BaseSettings):
         s = str(v).strip()
         return s if s else None
 
-    def threexui_config(self) -> ThreeXUIConfig | None:
+    def threexui_backend_configs(self) -> dict[str, ThreeXUIConfig]:
+        raw_json = (self.threexui_backends_json or "").strip()
+        if raw_json:
+            return _parse_threexui_backends_json(raw_json)
         base = (self.threexui_base_url or "").strip().rstrip("/")
         if not base:
-            return None
+            return {}
         user = (self.threexui_username or "").strip()
         pwd = (self.threexui_password or "").strip()
         if not user or not pwd:
-            return None
+            return {}
         vs = (self.threexui_vless_server or "").strip() or None
-        return ThreeXUIConfig(
+        cfg = ThreeXUIConfig(
+            key="default",
+            title="default",
             base_url=base,
             username=user,
             password=pwd,
             vless_server=vs,
             vless_port=self.threexui_vless_port,
             inbound_id=int(self.threexui_inbound_id),
+            weight=1,
+            enabled=True,
         )
+        return {"default": cfg}
+
+    def threexui_default_backend_key(self) -> str:
+        configs = self.threexui_backend_configs()
+        if not configs:
+            return "default"
+        explicit = (self.threexui_default_key or "").strip()
+        if explicit:
+            if explicit not in configs:
+                raise ValueError(
+                    f"THREEXUI_DEFAULT_KEY='{explicit}' отсутствует в списке панелей "
+                    f"({', '.join(sorted(configs.keys()))})"
+                )
+            return explicit
+        return sorted(configs.keys())[0]
 
 
 settings = Settings()

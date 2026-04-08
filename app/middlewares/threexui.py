@@ -4,12 +4,12 @@ from typing import Any, Awaitable, Callable
 
 from aiogram import BaseMiddleware
 
-from app.threexui_client import ThreeXUIClient
+from app.services.threexui_backends import ThreexuiRuntime
 
 
 class ThreexuiMiddleware(BaseMiddleware):
-    def __init__(self, client: ThreeXUIClient | None) -> None:
-        self._client = client
+    def __init__(self, runtime: ThreexuiRuntime) -> None:
+        self._runtime = runtime
 
     async def __call__(
         self,
@@ -17,5 +17,5 @@ class ThreexuiMiddleware(BaseMiddleware):
         event: Any,
         data: dict[str, Any],
     ) -> Any:
-        data["threexui"] = self._client
+        data["threexui_runtime"] = self._runtime
         return await handler(event, data)

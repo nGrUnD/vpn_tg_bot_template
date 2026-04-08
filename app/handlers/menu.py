@@ -3,10 +3,10 @@ from aiogram.types import CallbackQuery
 
 from app.callback_safe import safe_answer
 from app.services.main_menu import apply_full_main_menu_to_message
+from app.services.threexui_backends import ThreexuiRuntime
 from app.services.trial_activate import run_trial_activation_flow
 from app.services.trial_connections import apply_trial_connections_screen
 from app.services.welcome import show_welcome_on_message
-from app.threexui_client import ThreeXUIClient
 
 router = Router(name="menu")
 
@@ -19,16 +19,16 @@ async def on_open_main_menu(query: CallbackQuery, bot: Bot) -> None:
 
 
 @router.callback_query(F.data == "trial_3d")
-async def on_trial_3d_legacy(query: CallbackQuery, bot: Bot, threexui: ThreeXUIClient | None) -> None:
+async def on_trial_3d_legacy(query: CallbackQuery, bot: Bot, threexui_runtime: ThreexuiRuntime) -> None:
     """Старые клавиатуры с callback trial_3d."""
-    await run_trial_activation_flow(query, bot, back_to="welcome", threexui=threexui)
+    await run_trial_activation_flow(query, bot, back_to="welcome", threexui_runtime=threexui_runtime)
 
 
 @router.callback_query(F.data.startswith("trial_start:"))
-async def on_trial_start(query: CallbackQuery, bot: Bot, threexui: ThreeXUIClient | None) -> None:
+async def on_trial_start(query: CallbackQuery, bot: Bot, threexui_runtime: ThreexuiRuntime) -> None:
     origin = query.data.split(":", 1)[1]
     back_to = "welcome" if origin == "welcome" else "main"
-    await run_trial_activation_flow(query, bot, back_to=back_to, threexui=threexui)
+    await run_trial_activation_flow(query, bot, back_to=back_to, threexui_runtime=threexui_runtime)
 
 
 @router.callback_query(F.data.startswith("trial_back:"))

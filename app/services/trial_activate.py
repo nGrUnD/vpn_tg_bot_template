@@ -9,6 +9,7 @@ from aiogram.types import CallbackQuery
 
 from app.callback_safe import safe_answer
 from app.config import settings
+from app.services.threexui_backends import ThreexuiRuntime, pick_backend_for_new_trial
 from app.services.trial_connections import apply_trial_connections_screen
 from app.services.users import (
     ensure_user,
@@ -16,7 +17,6 @@ from app.services.users import (
     save_trial_access,
     trial_still_active,
 )
-from app.threexui_client import ThreeXUIClient
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ async def run_trial_activation_flow(
     bot: Bot,
     *,
     back_to: str,
-    threexui: ThreeXUIClient | None,
+    threexui_runtime: ThreexuiRuntime,
 ) -> None:
     if query.from_user is None:
         return
@@ -41,7 +41,7 @@ async def run_trial_activation_flow(
         await apply_trial_connections_screen(query, bot, back_to=back_to, subscription_url=sub)
         return
 
-    if threexui is None:
+    if not threexui_runtime.has_backends:
         await apply_trial_connections_screen(
             query,
             bot,
@@ -49,14 +49,20 @@ async def run_trial_activation_flow(
             subscription_url=None,
             caption_prefix=(
                 "⚠️ <b>Панель 3x-ui не настроена</b> — подписка не создана. "
-                "Укажите в .env: <code>THREEXUI_BASE_URL</code>, "
-                "<code>THREEXUI_USERNAME</code>, <code>THREEXUI_PASSWORD</code>."
+                "Укажите <code>THREEXUI_BASE_URL</code> / учётные данные "
+                "или <code>THREEXUI_BACKENDS_JSON</code> (несколько серверов)."
             ),
         )
         return
 
     try:
-        info = await threexui.create_trial_client_all_inbounds(
+        backend_cfg = await pick_backend_for_new_trial(
+            registry=threexui_runtime.registry,
+            configs=threexui_runtime.configs,
+            default_key=threexui_runtime.default_key,
+        )
+        client = threexui_runtime.registry[backend_cfg.key]
+        info = await client.create_trial_client_all_inbounds(
             tid,
             settings.trial_days,
             total_gb=settings.trial_traffic_gb,
@@ -82,6 +88,7 @@ async def run_trial_activation_flow(
         sub_id=info.sub_id or "",
         days=settings.trial_days,
         subscription_url=info.subscription_url,
+        backend_key=backend_cfg.key,
     )
 
     await apply_trial_connections_screen(
