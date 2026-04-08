@@ -135,6 +135,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+.bot_poll.lock
 .env
 .envrc
 .venv

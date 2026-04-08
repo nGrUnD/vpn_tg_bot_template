@@ -1,7 +1,22 @@
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery
 
+from app.keyboards.inline import main_menu_keyboard
+
 router = Router(name="menu")
+
+
+@router.callback_query(F.data == "main_menu")
+async def on_main_menu_legacy(query: CallbackQuery) -> None:
+    """Старые сообщения с кнопкой «Главное меню» (callback main_menu)."""
+    await query.answer()
+    if query.message is None:
+        return
+    try:
+        await query.message.edit_reply_markup(reply_markup=main_menu_keyboard())
+    except TelegramBadRequest:
+        pass
 
 
 @router.callback_query(F.data == "trial_3d")

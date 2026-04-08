@@ -11,6 +11,7 @@ from aiogram.enums import ParseMode
 from app.config import settings
 from app.db import close_db, init_db
 from app.handlers import root_router
+from app.single_instance import acquire_polling_lock
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,7 @@ async def _run() -> None:
 def main() -> None:
     _configure_asyncio_on_windows()
     _configure_logging()
+    acquire_polling_lock()
     asyncio.run(_run())
 
 
