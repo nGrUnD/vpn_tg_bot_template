@@ -3,7 +3,34 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from app.config import settings
 
 
+def welcome_keyboard() -> InlineKeyboardMarkup:
+    """После проверки подписки: три кнопки."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🩵 Получить 3 дня",
+                    callback_data="trial_3d",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🛒 Купить доступ",
+                    callback_data="buy_access",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📌 Главное меню",
+                    callback_data="main_menu",
+                ),
+            ],
+        ],
+    )
+
+
 def main_menu_keyboard() -> InlineKeyboardMarkup:
+    """Полное главное меню (после кнопки «Главное меню»)."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
