@@ -5,6 +5,7 @@ from app import texts
 from app.callback_safe import safe_answer
 from app.services.main_menu import apply_full_main_menu_to_message
 from app.services.profile_screen import apply_profile_screen
+from app.services.support_screen import apply_support_screen
 from app.services.threexui_backends import ThreexuiRuntime
 from app.services.trial_activate import run_trial_activation_flow
 from app.services.trial_connections import apply_trial_connections_screen
@@ -123,8 +124,9 @@ async def on_profile_back_main(query: CallbackQuery, bot: Bot) -> None:
 
 
 @router.callback_query(F.data == "support")
-async def on_support(query: CallbackQuery) -> None:
-    await safe_answer(query, "Техподдержка — в разработке.", show_alert=True)
+async def on_support(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    await apply_support_screen(query, bot)
 
 
 @router.callback_query(F.data == "referral")

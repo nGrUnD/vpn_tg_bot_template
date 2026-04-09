@@ -158,6 +158,19 @@ def profile_keyboard() -> InlineKeyboardMarkup:
     )
 
 
+def support_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data="main_menu",
+                ),
+            ],
+        ],
+    )
+
+
 def subscription_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[

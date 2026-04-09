@@ -121,3 +121,16 @@ def profile_caption(
         f"💰 <b>Бонусный баланс:</b> {int(bonus_balance_rub)}₽\n\n"
         "Ниже откройте «⭐️ Мои подключения»."
     )
+
+
+SUPPORT_HANDLE = "VPNRaccsterSupport"
+SUPPORT_TELEGRAM_URL = "https://t.me/VPNRaccsterSupport"
+
+SUPPORT_CAPTION = (
+    "🛠 <b>Поддержка</b>\n\n"
+    "<b>Если VPN не работает:</b>\n"
+    "1. Откройте «⭐️ Мои подключения»\n"
+    "2. Нажмите «🔎 Не работает VPN?»\n\n"
+    "Если не помогло, напишите сюда: "
+    f'<a href="{SUPPORT_TELEGRAM_URL}">@{SUPPORT_HANDLE}</a>'
+)
