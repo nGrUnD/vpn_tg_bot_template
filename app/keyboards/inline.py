@@ -80,15 +80,14 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
 
 def trial_connections_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
     """
-    back_to: «welcome» или «main» — куда ведёт «Назад».
+    back_to: «welcome», «main» или «profile» — куда ведёт «Назад».
     """
     s = settings
     rows: list[list[InlineKeyboardButton]] = [
         [
-            _device_button(
-                "Windows/Mac 💻",
-                s.connect_page_windows_url,
-                "conn_windows",
+            InlineKeyboardButton(
+                text="Windows/Mac 💻",
+                callback_data=f"conn_windows:{back_to}",
             ),
         ],
         [
@@ -152,6 +151,25 @@ def profile_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="⬅️ Назад",
                     callback_data="profile_back_main",
+                ),
+            ],
+        ],
+    )
+
+
+def windows_mac_guide_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Подключить другое устройство",
+                    callback_data=f"trial_devices:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"trial_back:{back_to}",
                 ),
             ],
         ],

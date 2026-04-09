@@ -8,6 +8,7 @@ from app.services.profile_screen import apply_profile_screen
 from app.services.support_screen import apply_support_screen
 from app.services.threexui_backends import ThreexuiRuntime
 from app.services.trial_activate import run_trial_activation_flow
+from app.services.connect_windows_mac import apply_windows_mac_guide_screen
 from app.services.trial_connections import apply_trial_connections_screen
 from app.services.users import ensure_user, get_trial_subscription_url, trial_still_active
 from app.services.welcome import show_welcome_on_message
@@ -47,14 +48,46 @@ async def on_trial_back(query: CallbackQuery, bot: Bot) -> None:
         await apply_full_main_menu_to_message(query, bot)
 
 
-@router.callback_query(F.data == "conn_windows")
-async def on_conn_windows(query: CallbackQuery) -> None:
-    await safe_answer(
-        query,
-        "Страница подключения для Windows/Mac пока не настроена. "
-        "Добавьте CONNECT_PAGE_WINDOWS_URL в .env",
-        show_alert=True,
-    )
+@router.callback_query(
+    lambda q: (q.data or "") == "conn_windows" or (q.data or "").startswith("conn_windows:")
+)
+async def on_conn_windows(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    raw = query.data or ""
+    back_to = raw.split(":", 1)[1] if raw.startswith("conn_windows:") else "main"
+    if query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    tid = query.from_user.id
+    sub: str | None = None
+    if await trial_still_active(tid):
+        sub = await get_trial_subscription_url(tid)
+    await apply_windows_mac_guide_screen(query, bot, back_to=back_to, subscription_url=sub)
+
+
+@router.callback_query(F.data.startswith("trial_devices:"))
+async def on_trial_devices(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    back_to = (query.data or "").split(":", 1)[1]
+    if query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    tid = query.from_user.id
+    if await trial_still_active(tid):
+        sub = await get_trial_subscription_url(tid)
+        await apply_trial_connections_screen(
+            query,
+            bot,
+            back_to=back_to,
+            subscription_url=sub,
+        )
+    else:
+        await apply_trial_connections_screen(
+            query,
+            bot,
+            back_to=back_to,
+            caption_html=texts.connections_no_access_caption(),
+        )
 
 
 @router.callback_query(F.data == "conn_iphone")

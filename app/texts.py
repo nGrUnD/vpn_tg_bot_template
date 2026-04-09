@@ -126,6 +126,37 @@ def profile_caption(
 SUPPORT_HANDLE = "VPNRaccsterSupport"
 SUPPORT_TELEGRAM_URL = "https://t.me/VPNRaccsterSupport"
 
+WINDOWS_MAC_HAPP_DOWNLOAD_URL = (
+    "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/setup-Happ.x64.exe"
+)
+WINDOWS_MAC_HIDDIFY_DOWNLOAD_URL = (
+    "https://github.com/hiddify/hiddify-app/releases/latest/download/Hiddify-Windows-Setup-x64.exe"
+)
+
+
+def windows_mac_guide_caption(subscription_url: str | None) -> str:
+    """Инструкция Windows/Mac; ссылки приложений — текст «скачать»."""
+    happ = html.escape(WINDOWS_MAC_HAPP_DOWNLOAD_URL, quote=True)
+    hid = html.escape(WINDOWS_MAC_HIDDIFY_DOWNLOAD_URL, quote=True)
+    body = (
+        "🖥 <b>Подключение для Windows / Mac</b>\n\n"
+        "1. Откройте ссылку для подключения в боте.\n"
+        "2. Установите одно из приложений, если оно ещё не установлено:\n"
+        f'— hApp — <a href="{happ}">скачать</a>\n'
+        f'— Hiddify — <a href="{hid}">скачать</a>\n'
+        "3. На странице подключения нажмите кнопку открытия в выбранном приложении.\n\n"
+    )
+    if subscription_url and subscription_url.strip():
+        su = html.escape(subscription_url.strip(), quote=True)
+        body += f'Ссылка на страницу подключения: <a href="{su}">открыть</a>'
+    else:
+        body += (
+            "Ссылка на страницу подключения пока недоступна — активируйте пробный период "
+            "и откройте «⭐️ Мои подключения», там появится ссылка на подписку."
+        )
+    return body
+
+
 SUPPORT_CAPTION = (
     "🛠 <b>Поддержка</b>\n\n"
     "<b>Если VPN не работает:</b>\n"
