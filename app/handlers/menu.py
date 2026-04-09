@@ -8,6 +8,7 @@ from app.services.profile_screen import apply_profile_screen
 from app.services.support_screen import apply_support_screen
 from app.services.threexui_backends import ThreexuiRuntime
 from app.services.trial_activate import run_trial_activation_flow
+from app.services.connect_iphone import apply_iphone_guide_screen
 from app.services.connect_windows_mac import apply_windows_mac_guide_screen
 from app.services.trial_connections import apply_trial_connections_screen
 from app.services.users import ensure_user, get_trial_subscription_url, trial_still_active
@@ -90,11 +91,28 @@ async def on_trial_devices(query: CallbackQuery, bot: Bot) -> None:
         )
 
 
-@router.callback_query(F.data == "conn_iphone")
-async def on_conn_iphone(query: CallbackQuery) -> None:
+@router.callback_query(
+    lambda q: (q.data or "") == "conn_iphone" or (q.data or "").startswith("conn_iphone:")
+)
+async def on_conn_iphone(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    raw = query.data or ""
+    back_to = raw.split(":", 1)[1] if raw.startswith("conn_iphone:") else "main"
+    if query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    tid = query.from_user.id
+    sub: str | None = None
+    if await trial_still_active(tid):
+        sub = await get_trial_subscription_url(tid)
+    await apply_iphone_guide_screen(query, bot, back_to=back_to, subscription_url=sub)
+
+
+@router.callback_query(F.data == "iphone_instruction")
+async def on_iphone_instruction(query: CallbackQuery) -> None:
     await safe_answer(
         query,
-        "Страница для iPhone пока не настроена. Добавьте CONNECT_PAGE_IPHONE_URL в .env",
+        "Добавьте ссылку на инструкцию в .env: IPHONE_INSTRUCTION_URL=https://…",
         show_alert=True,
     )
 

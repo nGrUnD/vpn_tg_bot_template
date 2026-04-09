@@ -157,6 +157,50 @@ def windows_mac_guide_caption(subscription_url: str | None) -> str:
     return body
 
 
+IPHONE_HAPP_APP_STORE_URL = "https://apps.apple.com/app/id6504287215"
+IPHONE_HIDDIFY_APP_STORE_URL = "https://apps.apple.com/app/id6596777532"
+IPHONE_V2RAYTUN_APP_STORE_URL = "https://apps.apple.com/app/id6476628951"
+
+
+def subscription_url_for_ios(subscription_url: str | None) -> str | None:
+    """Добавляет platform=ios к URL подписки (как на странице подключения)."""
+    if not subscription_url or not subscription_url.strip():
+        return None
+    u = subscription_url.strip()
+    lower = u.lower()
+    if "platform=ios" in lower:
+        return u
+    sep = "&" if "?" in u else "?"
+    return f"{u}{sep}platform=ios"
+
+
+def iphone_guide_caption(subscription_url: str | None) -> str:
+    happ = html.escape(IPHONE_HAPP_APP_STORE_URL, quote=True)
+    hid = html.escape(IPHONE_HIDDIFY_APP_STORE_URL, quote=True)
+    v2 = html.escape(IPHONE_V2RAYTUN_APP_STORE_URL, quote=True)
+    body = (
+        "🍏 <b>Подключение для iPhone</b>\n\n"
+        "Подписка активирована ✅\n\n"
+        "Откройте ссылку на страницу подключения в боте.\n\n"
+        "Установите одно из приложений, если оно ещё не установлено:\n"
+        f'— hApp — <a href="{happ}">скачать</a>\n'
+        f'— Hiddify — <a href="{hid}">скачать</a>\n'
+        f'— v2RayTun — <a href="{v2}">скачать</a>\n\n'
+        "На странице подключения нажмите кнопку открытия в выбранном приложении "
+        "для автоимпорта.\n\n"
+    )
+    ios_link = subscription_url_for_ios(subscription_url)
+    if ios_link:
+        su = html.escape(ios_link, quote=True)
+        body += f'Ссылка на страницу подключения: <a href="{su}">открыть</a>'
+    else:
+        body += (
+            "Ссылка на страницу подключения пока недоступна — активируйте пробный период "
+            "и откройте «⭐️ Мои подключения»."
+        )
+    return body
+
+
 SUPPORT_CAPTION = (
     "🛠 <b>Поддержка</b>\n\n"
     "<b>Если VPN не работает:</b>\n"

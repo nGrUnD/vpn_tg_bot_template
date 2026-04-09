@@ -91,10 +91,9 @@ def trial_connections_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
             ),
         ],
         [
-            _device_button(
-                "iPhone 🍏",
-                s.connect_page_iphone_url,
-                "conn_iphone",
+            InlineKeyboardButton(
+                text="iPhone 🍏",
+                callback_data=f"conn_iphone:{back_to}",
             ),
         ],
         [
@@ -151,6 +150,37 @@ def profile_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="⬅️ Назад",
                     callback_data="profile_back_main",
+                ),
+            ],
+        ],
+    )
+
+
+def iphone_guide_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    inst = settings.iphone_instruction_url
+    inst_row = (
+        [InlineKeyboardButton(text="Инструкция для iPhone", url=inst)]
+        if inst
+        else [
+            InlineKeyboardButton(
+                text="Инструкция для iPhone",
+                callback_data="iphone_instruction",
+            ),
+        ]
+    )
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            inst_row,
+            [
+                InlineKeyboardButton(
+                    text="Подключить другое устройство",
+                    callback_data=f"trial_devices:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"trial_back:{back_to}",
                 ),
             ],
         ],
