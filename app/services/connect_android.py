@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
@@ -8,7 +9,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto
 
 from app import texts
-from app.keyboards.inline import android_guide_keyboard
+from app.keyboards.inline import android_apps_choice_keyboard
 from app.paths import ANDROID_GUIDE_IMAGE_PATH
 
 logger = logging.getLogger(__name__)
@@ -19,14 +20,19 @@ async def apply_android_guide_screen(
     bot: Bot,
     *,
     back_to: str,
-    subscription_url: str | None,
+    back_navigation: Literal["trial", "instructions"] = "trial",
 ) -> None:
     msg = query.message
     if msg is None:
         return
 
-    caption = texts.android_guide_caption(subscription_url)
-    kb = android_guide_keyboard(back_to=back_to)
+    caption = texts.android_apps_instruction_caption()
+    back_cb = (
+        f"instructions:{back_to}"
+        if back_navigation == "instructions"
+        else f"trial_back:{back_to}"
+    )
+    kb = android_apps_choice_keyboard(back_callback_data=back_cb)
     path = ANDROID_GUIDE_IMAGE_PATH
 
     if path.is_file():

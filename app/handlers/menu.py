@@ -130,11 +130,27 @@ async def on_conn_android(query: CallbackQuery, bot: Bot) -> None:
     if query.from_user is None:
         return
     await ensure_user(query.from_user)
-    tid = query.from_user.id
-    sub: str | None = None
-    if await trial_still_active(tid):
-        sub = await get_trial_subscription_url(tid)
-    await apply_android_guide_screen(query, bot, back_to=back_to, subscription_url=sub)
+    await apply_android_guide_screen(
+        query,
+        bot,
+        back_to=back_to,
+        back_navigation="trial",
+    )
+
+
+@router.callback_query(F.data.startswith("instructions_android:"))
+async def on_instructions_android(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    back_to = (query.data or "").split(":", 1)[1]
+    if query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    await apply_android_guide_screen(
+        query,
+        bot,
+        back_to=back_to or "main",
+        back_navigation="instructions",
+    )
 
 
 @router.callback_query(F.data == "android_instruction")

@@ -236,31 +236,13 @@ def subscription_url_for_android(subscription_url: str | None) -> str | None:
     return f"{u}{sep}platform=android"
 
 
-def android_guide_caption(subscription_url: str | None) -> str:
-    happ = html.escape(ANDROID_HAPP_PLAY_URL, quote=True)
-    hid = html.escape(ANDROID_HIDDIFY_PLAY_URL, quote=True)
-    v2 = html.escape(ANDROID_V2RAYTUN_PLAY_URL, quote=True)
-    body = (
-        "📱 <b>Подключение для Android</b>\n\n"
-        "Подписка активирована ✅\n\n"
-        "Откройте ссылку на страницу подключения в боте.\n\n"
-        "Установите одно из приложений, если оно ещё не установлено:\n"
-        f'— hApp — <a href="{happ}">скачать</a>\n'
-        f'— Hiddify — <a href="{hid}">скачать</a>\n'
-        f'— v2RayTun — <a href="{v2}">скачать</a>\n\n'
-        "На странице подключения нажмите кнопку открытия в выбранном приложении "
-        "для автоимпорта.\n\n"
+def android_apps_instruction_caption() -> str:
+    return (
+        "📝 <b>Инструкции по подключению</b>\n"
+        "📱 <b>Android</b>\n\n"
+        "Для нашего VPN рекомендуем <b>Happ</b>.\n"
+        "<b>Hiddify</b>, <b>V2RayTun</b> оставили ниже для тех, кто уже им пользуется."
     )
-    and_link = subscription_url_for_android(subscription_url)
-    if and_link:
-        su = html.escape(and_link, quote=True)
-        body += f'Ссылка на страницу подключения: <a href="{su}">открыть</a>'
-    else:
-        body += (
-            "Ссылка на страницу подключения пока недоступна — активируйте пробный период "
-            "и откройте «⭐️ Мои подключения»."
-        )
-    return body
 
 
 VPN_TROUBLESHOOT_PROCESSING_CAPTION = (

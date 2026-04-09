@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from app import texts as app_texts
 from app.config import settings
 from app.ru_plural import trial_button_caption
 
@@ -78,7 +79,7 @@ def instructions_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text="Android 📱",
-                    callback_data=f"conn_android:{back_to}",
+                    callback_data=f"instructions_android:{back_to}",
                 ),
             ],
             [
@@ -179,31 +180,31 @@ def profile_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def android_guide_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
-    inst = settings.android_instruction_url
-    inst_row = (
-        [InlineKeyboardButton(text="Инструкция для Android", url=inst)]
-        if inst
-        else [
-            InlineKeyboardButton(
-                text="Инструкция для Android",
-                callback_data="android_instruction",
-            ),
-        ]
-    )
+def android_apps_choice_keyboard(*, back_callback_data: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            inst_row,
             [
                 InlineKeyboardButton(
-                    text="Подключить другое устройство",
-                    callback_data=f"trial_devices:{back_to}",
+                    text="⭐️ Рекомендуем Happ",
+                    url=app_texts.ANDROID_HAPP_PLAY_URL,
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Hiddify",
+                    url=app_texts.ANDROID_HIDDIFY_PLAY_URL,
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="V2RayTun",
+                    url=app_texts.ANDROID_V2RAYTUN_PLAY_URL,
                 ),
             ],
             [
                 InlineKeyboardButton(
                     text="⬅️ Назад",
-                    callback_data=f"trial_back:{back_to}",
+                    callback_data=back_callback_data,
                 ),
             ],
         ],
