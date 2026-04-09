@@ -193,6 +193,21 @@ def subscription_url_for_ios(subscription_url: str | None) -> str | None:
     return f"{u}{sep}platform=ios"
 
 
+def iphone_instructions_apps_caption() -> str:
+    happ = html.escape(IPHONE_HAPP_APP_STORE_URL, quote=True)
+    hid = html.escape(IPHONE_HIDDIFY_APP_STORE_URL, quote=True)
+    v2 = html.escape(IPHONE_V2RAYTUN_APP_STORE_URL, quote=True)
+    return (
+        "📝 <b>Инструкции по подключению</b>\n"
+        "🍏 <b>iPhone</b>\n\n"
+        "Инструкция по настройке RaccsterVPN на iOS. Рекомендуем <b>Happ</b> для первого подключения. "
+        "Если вы уже пользуетесь <b>Hiddify</b> или <b>V2RayTun</b>, их тоже можно оставить.\n\n"
+        f'<b>Скачать Happ ⬇️</b> <a href="{happ}">Happ</a>\n'
+        f'<b>Скачать Hiddify ⬇️</b> <a href="{hid}">Hiddify</a>\n'
+        f'<b>Скачать V2RayTun ⬇️</b> <a href="{v2}">V2RayTun</a>'
+    )
+
+
 def iphone_guide_caption(subscription_url: str | None) -> str:
     happ = html.escape(IPHONE_HAPP_APP_STORE_URL, quote=True)
     hid = html.escape(IPHONE_HIDDIFY_APP_STORE_URL, quote=True)

@@ -1,6 +1,7 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.config import settings
+from app import texts as app_texts
 from app.ru_plural import trial_button_caption
 
 
@@ -260,6 +261,37 @@ def android_instructions_android_sub_keyboard(*, back_to: str) -> InlineKeyboard
                 InlineKeyboardButton(
                     text="📌 Главное меню",
                     callback_data="main_menu",
+                ),
+            ],
+        ],
+    )
+
+
+def iphone_instructions_apps_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⭐️ Рекомендуем Happ",
+                    url=app_texts.IPHONE_HAPP_APP_STORE_URL,
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Hiddify",
+                    url=app_texts.IPHONE_HIDDIFY_APP_STORE_URL,
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="V2RayTun",
+                    url=app_texts.IPHONE_V2RAYTUN_APP_STORE_URL,
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"instructions:{back_to}",
                 ),
             ],
         ],
