@@ -84,6 +84,25 @@ def trial_connections_caption(days: int, subscription_url: str | None = None) ->
     return base
 
 
+def instructions_caption(subscription_url: str | None) -> str:
+    """Экран «Инструкции по подключению» (ссылка как в «Мои подключения»)."""
+    body = (
+        "📝 <b>Инструкции по подключению</b>\n\n"
+        "Подписка активирована ✅\n\n"
+        "Откройте ссылку на страницу подключения ниже. На странице будут кнопки Happ и Hiddify "
+        "для автоимпорта в приложение.\n\n"
+    )
+    if subscription_url and subscription_url.strip():
+        u = html.escape(subscription_url.strip(), quote=True)
+        body += f'<b>Ссылка на страницу подключения:</b> <a href="{u}">открыть</a>'
+    else:
+        body += (
+            "<b>Ссылка на страницу подключения:</b> пока недоступна — активируйте пробный период "
+            "и откройте «⭐️ Мои подключения»."
+        )
+    return body
+
+
 def connections_no_access_caption() -> str:
     return (
         "⭐️ <b>Мои подключения</b>\n\n"

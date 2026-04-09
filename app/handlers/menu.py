@@ -12,6 +12,7 @@ from app.services.connect_android import apply_android_guide_screen
 from app.services.connect_iphone import apply_iphone_guide_screen
 from app.services.connect_windows_mac import apply_windows_mac_guide_screen
 from app.services.trial_connections import apply_trial_connections_screen
+from app.services.instructions_screen import apply_instructions_screen
 from app.services.vpn_troubleshoot_screen import run_vpn_troubleshoot_reissue
 from app.services.users import ensure_user, get_trial_subscription_url, trial_still_active
 from app.services.welcome import show_welcome_on_message
@@ -223,6 +224,23 @@ async def on_referral(query: CallbackQuery) -> None:
     await safe_answer(query, "Реферальная программа — в разработке.", show_alert=True)
 
 
-@router.callback_query(F.data == "instructions")
-async def on_instructions(query: CallbackQuery) -> None:
-    await safe_answer(query, "Инструкции по подключению — в разработке.", show_alert=True)
+@router.callback_query(
+    lambda q: (q.data or "") == "instructions" or (q.data or "").startswith("instructions:")
+)
+async def on_instructions(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    raw = query.data or ""
+    back_to = raw.split(":", 1)[1] if raw.startswith("instructions:") else "main"
+    if query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    tid = query.from_user.id
+    sub: str | None = None
+    if await trial_still_active(tid):
+        sub = await get_trial_subscription_url(tid)
+    await apply_instructions_screen(
+        query,
+        bot,
+        back_to=back_to or "main",
+        subscription_url=sub,
+    )

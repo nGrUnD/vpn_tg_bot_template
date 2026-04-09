@@ -65,7 +65,38 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
                 ),
                 InlineKeyboardButton(
                     text="📝 Инструкции по подключению",
-                    callback_data="instructions",
+                    callback_data="instructions:main",
+                ),
+            ],
+        ],
+    )
+
+
+def instructions_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Android 📱",
+                    callback_data=f"conn_android:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="iPhone 🍏",
+                    callback_data=f"conn_iphone:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Windows/Mac 💻",
+                    callback_data=f"conn_windows:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📌 Главное меню",
+                    callback_data="main_menu",
                 ),
             ],
         ],
@@ -104,7 +135,7 @@ def trial_connections_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(
                 text="📝 Инструкции по подключению",
-                callback_data="instructions",
+                callback_data=f"instructions:{back_to}",
             ),
         ],
         [
