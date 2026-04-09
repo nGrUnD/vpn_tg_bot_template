@@ -201,6 +201,49 @@ def iphone_guide_caption(subscription_url: str | None) -> str:
     return body
 
 
+ANDROID_HAPP_PLAY_URL = "https://play.google.com/store/apps/details?id=com.happproxy"
+ANDROID_HIDDIFY_PLAY_URL = "https://play.google.com/store/apps/details?id=app.hiddify.com"
+ANDROID_V2RAYTUN_PLAY_URL = "https://play.google.com/store/apps/details?id=com.v2raytun.android"
+
+
+def subscription_url_for_android(subscription_url: str | None) -> str | None:
+    if not subscription_url or not subscription_url.strip():
+        return None
+    u = subscription_url.strip()
+    lower = u.lower()
+    if "platform=android" in lower:
+        return u
+    sep = "&" if "?" in u else "?"
+    return f"{u}{sep}platform=android"
+
+
+def android_guide_caption(subscription_url: str | None) -> str:
+    happ = html.escape(ANDROID_HAPP_PLAY_URL, quote=True)
+    hid = html.escape(ANDROID_HIDDIFY_PLAY_URL, quote=True)
+    v2 = html.escape(ANDROID_V2RAYTUN_PLAY_URL, quote=True)
+    body = (
+        "📱 <b>Подключение для Android</b>\n\n"
+        "Подписка активирована ✅\n\n"
+        "Откройте ссылку на страницу подключения в боте.\n\n"
+        "Установите одно из приложений, если оно ещё не установлено:\n"
+        f'— hApp — <a href="{happ}">скачать</a>\n'
+        f'— Hiddify — <a href="{hid}">скачать</a>\n'
+        f'— v2RayTun — <a href="{v2}">скачать</a>\n\n'
+        "На странице подключения нажмите кнопку открытия в выбранном приложении "
+        "для автоимпорта.\n\n"
+    )
+    and_link = subscription_url_for_android(subscription_url)
+    if and_link:
+        su = html.escape(and_link, quote=True)
+        body += f'Ссылка на страницу подключения: <a href="{su}">открыть</a>'
+    else:
+        body += (
+            "Ссылка на страницу подключения пока недоступна — активируйте пробный период "
+            "и откройте «⭐️ Мои подключения»."
+        )
+    return body
+
+
 SUPPORT_CAPTION = (
     "🛠 <b>Поддержка</b>\n\n"
     "<b>Если VPN не работает:</b>\n"

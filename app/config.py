@@ -137,6 +137,7 @@ class Settings(BaseSettings):
     connect_page_iphone_url: str | None = Field(default=None, validation_alias="CONNECT_PAGE_IPHONE_URL")
     connect_page_android_url: str | None = Field(default=None, validation_alias="CONNECT_PAGE_ANDROID_URL")
     iphone_instruction_url: str | None = Field(default=None, validation_alias="IPHONE_INSTRUCTION_URL")
+    android_instruction_url: str | None = Field(default=None, validation_alias="ANDROID_INSTRUCTION_URL")
 
     @field_validator("database_ssl_require", mode="before")
     @classmethod
@@ -160,6 +161,7 @@ class Settings(BaseSettings):
         "connect_page_iphone_url",
         "connect_page_android_url",
         "iphone_instruction_url",
+        "android_instruction_url",
         mode="before",
     )
     @classmethod

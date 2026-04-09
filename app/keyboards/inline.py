@@ -4,12 +4,6 @@ from app.config import settings
 from app.ru_plural import trial_button_caption
 
 
-def _device_button(text: str, url: str | None, callback_data: str) -> InlineKeyboardButton:
-    if url:
-        return InlineKeyboardButton(text=text, url=url)
-    return InlineKeyboardButton(text=text, callback_data=callback_data)
-
-
 def welcome_keyboard() -> InlineKeyboardMarkup:
     """После проверки подписки: три кнопки."""
     days = settings.trial_days
@@ -82,7 +76,6 @@ def trial_connections_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
     """
     back_to: «welcome», «main» или «profile» — куда ведёт «Назад».
     """
-    s = settings
     rows: list[list[InlineKeyboardButton]] = [
         [
             InlineKeyboardButton(
@@ -97,10 +90,9 @@ def trial_connections_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
             ),
         ],
         [
-            _device_button(
-                "Android 📱",
-                s.connect_page_android_url,
-                "conn_android",
+            InlineKeyboardButton(
+                text="Android 📱",
+                callback_data=f"conn_android:{back_to}",
             ),
         ],
         [
@@ -150,6 +142,37 @@ def profile_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="⬅️ Назад",
                     callback_data="profile_back_main",
+                ),
+            ],
+        ],
+    )
+
+
+def android_guide_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    inst = settings.android_instruction_url
+    inst_row = (
+        [InlineKeyboardButton(text="Инструкция для Android", url=inst)]
+        if inst
+        else [
+            InlineKeyboardButton(
+                text="Инструкция для Android",
+                callback_data="android_instruction",
+            ),
+        ]
+    )
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            inst_row,
+            [
+                InlineKeyboardButton(
+                    text="Подключить другое устройство",
+                    callback_data=f"trial_devices:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"trial_back:{back_to}",
                 ),
             ],
         ],
