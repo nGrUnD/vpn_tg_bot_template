@@ -22,14 +22,18 @@ async def apply_trial_connections_screen(
     back_to: str,
     subscription_url: str | None = None,
     caption_prefix: str | None = None,
+    caption_html: str | None = None,
 ) -> None:
-    """Экран «Мои подключения» после активации пробного периода."""
+    """Экран «Мои подключения» (пробный период или свой текст через caption_html)."""
     msg = query.message
     if msg is None:
         return
 
-    days = settings.trial_days
-    caption = texts.trial_connections_caption(days, subscription_url=subscription_url)
+    if caption_html is not None:
+        caption = caption_html
+    else:
+        days = settings.trial_days
+        caption = texts.trial_connections_caption(days, subscription_url=subscription_url)
     if caption_prefix:
         caption = caption_prefix.rstrip() + "\n\n" + caption
     kb = trial_connections_keyboard(back_to=back_to)

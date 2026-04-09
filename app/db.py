@@ -88,6 +88,12 @@ async def init_db() -> None:
         await conn.execute(
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_backend_key VARCHAR(64)"
         )
+        await conn.execute(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS bonus_days INTEGER NOT NULL DEFAULT 0"
+        )
+        await conn.execute(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS bonus_balance_rub INTEGER NOT NULL DEFAULT 0"
+        )
 
 
 async def get_pool() -> asyncpg.Pool:

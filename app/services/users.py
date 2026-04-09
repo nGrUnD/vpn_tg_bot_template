@@ -106,6 +106,19 @@ async def get_trial_panel_sync_fields(telegram_id: int) -> asyncpg.Record | None
     return row
 
 
+async def fetch_profile_row(telegram_id: int) -> asyncpg.Record | None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow(
+            """
+            SELECT trial_expires_at, bonus_days, bonus_balance_rub, channel_verified_at
+            FROM users
+            WHERE telegram_id = $1
+            """,
+            telegram_id,
+        )
+
+
 async def clear_trial_in_db(telegram_id: int) -> None:
     """Сброс trial после удаления клиента в панели или рассинхрона."""
     pool = await get_pool()

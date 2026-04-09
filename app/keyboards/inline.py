@@ -127,6 +127,37 @@ def trial_connections_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+def profile_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⭐️ Мои подключения",
+                    callback_data="profile_connections",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🛒 Купить доступ",
+                    callback_data="buy_access",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🎁 Реферальная программа",
+                    callback_data="referral",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data="profile_back_main",
+                ),
+            ],
+        ],
+    )
+
+
 def subscription_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
