@@ -194,17 +194,51 @@ def subscription_url_for_ios(subscription_url: str | None) -> str | None:
 
 
 def iphone_instructions_apps_caption() -> str:
-    happ = html.escape(IPHONE_HAPP_APP_STORE_URL, quote=True)
-    hid = html.escape(IPHONE_HIDDIFY_APP_STORE_URL, quote=True)
-    v2 = html.escape(IPHONE_V2RAYTUN_APP_STORE_URL, quote=True)
     return (
         "📝 <b>Инструкции по подключению</b>\n"
         "🍏 <b>iPhone</b>\n\n"
         "Инструкция по настройке RaccsterVPN на iOS. Рекомендуем <b>Happ</b> для первого подключения. "
         "Если вы уже пользуетесь <b>Hiddify</b> или <b>V2RayTun</b>, их тоже можно оставить.\n\n"
-        f'<b>Скачать Happ ⬇️</b> <a href="{happ}">Happ</a>\n'
-        f'<b>Скачать Hiddify ⬇️</b> <a href="{hid}">Hiddify</a>\n'
-        f'<b>Скачать V2RayTun ⬇️</b> <a href="{v2}">V2RayTun</a>'
+        "Выберите приложение ниже — откроется пошаговая инструкция."
+    )
+
+
+def iphone_instr_happ_detail_caption() -> str:
+    u = html.escape(IPHONE_HAPP_APP_STORE_URL, quote=True)
+    return (
+        "📝 <b>Инструкции по подключению</b>\n"
+        "🍏 <b>iPhone</b> · <b>Happ</b>\n\n"
+        "Приложение <b>Happ</b> рекомендуем для iPhone по умолчанию. "
+        "Оно обычно проще для первого подключения.\n\n"
+        f'<b>Скачать Happ ⬇️</b> <a href="{u}">Happ</a>\n\n'
+        "<b>Как подключить Happ:</b>\n"
+        "1. Установите Happ\n"
+        "2. Откройте «⭐️ Мои подключения»\n"
+        "3. Выберите iPhone\n"
+        "4. Нажмите «Открыть в Happ» на странице подключения\n"
+        "5. Подтвердите импорт и разрешите VPN"
+    )
+
+
+def iphone_instr_hiddify_detail_caption() -> str:
+    u = html.escape(IPHONE_HIDDIFY_APP_STORE_URL, quote=True)
+    return (
+        "📝 <b>Инструкции по подключению</b>\n"
+        "🍏 <b>iPhone</b> · <b>Hiddify</b>\n\n"
+        "Приложение <b>Hiddify</b> оставили как второй вариант для iPhone. "
+        "Если вы уже пользуетесь Hiddify, можно не переходить на Happ.\n\n"
+        f'<b>Скачать Hiddify ⬇️</b> <a href="{u}">Hiddify</a>'
+    )
+
+
+def iphone_instr_v2raytun_detail_caption() -> str:
+    u = html.escape(IPHONE_V2RAYTUN_APP_STORE_URL, quote=True)
+    return (
+        "📝 <b>Инструкции по подключению</b>\n"
+        "🍏 <b>iPhone</b> · <b>V2RayTun</b>\n\n"
+        "Приложение <b>V2RayTun</b> оставили как второй вариант для iPhone. "
+        "Если вы уже пользуетесь V2RayTun, можно не переходить на Happ.\n\n"
+        f'<b>Скачать V2RayTun ⬇️</b> <a href="{u}">V2RayTun</a>'
     )
 
 

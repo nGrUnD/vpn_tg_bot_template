@@ -1,7 +1,6 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.config import settings
-from app import texts as app_texts
 from app.ru_plural import trial_button_caption
 
 
@@ -85,7 +84,7 @@ def instructions_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text="iPhone 🍏",
-                    callback_data=f"instructions_iphone:{back_to}",
+                    callback_data=f"iphone_instr_hub:i:{back_to}",
                 ),
             ],
             [
@@ -267,31 +266,53 @@ def android_instructions_android_sub_keyboard(*, back_to: str) -> InlineKeyboard
     )
 
 
-def iphone_instructions_apps_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+def iphone_instructions_apps_keyboard(*, back_to: str, parent: str) -> InlineKeyboardMarkup:
+    """parent: «i» — из меню инструкций, «t» — с экрана «Мои подключения» → iPhone."""
+    hub_back = f"instructions:{back_to}" if parent == "i" else f"conn_iphone:{back_to}"
+    p = parent
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text="⭐️ Рекомендуем Happ",
-                    url=app_texts.IPHONE_HAPP_APP_STORE_URL,
+                    callback_data=f"iphone_instr_happ:{p}:{back_to}",
                 ),
             ],
             [
                 InlineKeyboardButton(
                     text="Hiddify",
-                    url=app_texts.IPHONE_HIDDIFY_APP_STORE_URL,
+                    callback_data=f"iphone_instr_hiddify:{p}:{back_to}",
                 ),
             ],
             [
                 InlineKeyboardButton(
                     text="V2RayTun",
-                    url=app_texts.IPHONE_V2RAYTUN_APP_STORE_URL,
+                    callback_data=f"iphone_instr_v2raytun:{p}:{back_to}",
                 ),
             ],
             [
                 InlineKeyboardButton(
                     text="⬅️ Назад",
-                    callback_data=f"instructions:{back_to}",
+                    callback_data=hub_back,
+                ),
+            ],
+        ],
+    )
+
+
+def iphone_instructions_ios_detail_keyboard(*, parent: str, back_to: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"iphone_instr_hub:{parent}:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📌 Главное меню",
+                    callback_data="main_menu",
                 ),
             ],
         ],
@@ -303,21 +324,15 @@ def iphone_guide_keyboard(
     back_to: str,
     back_callback_data: str | None = None,
 ) -> InlineKeyboardMarkup:
-    inst = settings.iphone_instruction_url
-    inst_row = (
-        [InlineKeyboardButton(text="Инструкция для iPhone", url=inst)]
-        if inst
-        else [
-            InlineKeyboardButton(
-                text="Инструкция для iPhone",
-                callback_data="iphone_instruction",
-            ),
-        ]
-    )
     back_row = back_callback_data if back_callback_data is not None else f"trial_back:{back_to}"
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            inst_row,
+            [
+                InlineKeyboardButton(
+                    text="📝 Инструкции по подключению",
+                    callback_data=f"iphone_instr_hub:t:{back_to}",
+                ),
+            ],
             [
                 InlineKeyboardButton(
                     text="Подключить другое устройство",

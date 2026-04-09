@@ -18,6 +18,10 @@ from app.services.connect_android import (
 from app.services.connect_iphone import (
     apply_iphone_guide_screen,
     apply_iphone_instructions_apps_screen,
+    apply_iphone_instr_happ_detail_screen,
+    apply_iphone_instr_hiddify_detail_screen,
+    apply_iphone_instr_v2raytun_detail_screen,
+    parse_iphone_instr_cb,
 )
 from app.services.connect_windows_mac import apply_windows_mac_guide_screen
 from app.services.trial_connections import apply_trial_connections_screen
@@ -140,15 +144,89 @@ async def on_conn_iphone(query: CallbackQuery, bot: Bot) -> None:
     await apply_iphone_guide_screen(query, bot, back_to=back_to, subscription_url=sub)
 
 
+@router.callback_query(F.data.startswith("iphone_instr_hub:"))
+async def on_iphone_instr_hub(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    raw = query.data or ""
+    parsed = parse_iphone_instr_cb(raw, "iphone_instr_hub:")
+    if parsed is None or query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    parent, bt = parsed
+    await apply_iphone_instructions_apps_screen(
+        query,
+        bot,
+        back_to=bt,
+        parent=parent,
+    )
+
+
+@router.callback_query(F.data.startswith("iphone_instr_happ:"))
+async def on_iphone_instr_happ(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    raw = query.data or ""
+    parsed = parse_iphone_instr_cb(raw, "iphone_instr_happ:")
+    if parsed is None or query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    parent, bt = parsed
+    await apply_iphone_instr_happ_detail_screen(
+        query,
+        bot,
+        parent=parent,
+        back_to=bt,
+    )
+
+
+@router.callback_query(F.data.startswith("iphone_instr_hiddify:"))
+async def on_iphone_instr_hiddify(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    raw = query.data or ""
+    parsed = parse_iphone_instr_cb(raw, "iphone_instr_hiddify:")
+    if parsed is None or query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    parent, bt = parsed
+    await apply_iphone_instr_hiddify_detail_screen(
+        query,
+        bot,
+        parent=parent,
+        back_to=bt,
+    )
+
+
+@router.callback_query(F.data.startswith("iphone_instr_v2raytun:"))
+async def on_iphone_instr_v2raytun(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    raw = query.data or ""
+    parsed = parse_iphone_instr_cb(raw, "iphone_instr_v2raytun:")
+    if parsed is None or query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    parent, bt = parsed
+    await apply_iphone_instr_v2raytun_detail_screen(
+        query,
+        bot,
+        parent=parent,
+        back_to=bt,
+    )
+
+
 @router.callback_query(F.data.startswith("instructions_iphone:"))
-async def on_instructions_iphone(query: CallbackQuery, bot: Bot) -> None:
+async def on_instructions_iphone_legacy(query: CallbackQuery, bot: Bot) -> None:
+    """Старые клавиатуры с callback instructions_iphone:…"""
     await safe_answer(query)
     back_to = (query.data or "").split(":", 1)[1]
     if query.from_user is None:
         return
     await ensure_user(query.from_user)
     bt = back_to or "main"
-    await apply_iphone_instructions_apps_screen(query, bot, back_to=bt)
+    await apply_iphone_instructions_apps_screen(
+        query,
+        bot,
+        back_to=bt,
+        parent="i",
+    )
 
 
 @router.callback_query(F.data == "iphone_instruction")

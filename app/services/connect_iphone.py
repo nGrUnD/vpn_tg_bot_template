@@ -9,10 +9,31 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, InlineKeyboardMarkup
 
 from app import texts
-from app.keyboards.inline import iphone_guide_keyboard, iphone_instructions_apps_keyboard
-from app.paths import INSTRUCTIONS_IOS_APPS_IMAGE_PATH, IPHONE_GUIDE_IMAGE_PATH
+from app.keyboards.inline import (
+    iphone_guide_keyboard,
+    iphone_instructions_apps_keyboard,
+    iphone_instructions_ios_detail_keyboard,
+)
+from app.paths import (
+    INSTRUCTIONS_IOS_APPS_IMAGE_PATH,
+    INSTRUCTIONS_IOS_IPHONE_DETAIL_IMAGE_PATH,
+    IPHONE_GUIDE_IMAGE_PATH,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def parse_iphone_instr_cb(data: str, prefix: str) -> tuple[str, str] | None:
+    """iphone_instr_*:i:main → («i», «main»). parent ∈ {i, t}."""
+    if not data.startswith(prefix):
+        return None
+    rest = data[len(prefix) :]
+    if ":" not in rest:
+        return None
+    parent, _, back_to = rest.partition(":")
+    if parent not in ("i", "t") or not back_to:
+        return None
+    return parent, back_to
 
 
 async def _apply_iphone_visual_screen(
@@ -69,14 +90,66 @@ async def apply_iphone_instructions_apps_screen(
     bot: Bot,
     *,
     back_to: str,
+    parent: str,
 ) -> None:
     await _apply_iphone_visual_screen(
         query,
         bot,
         caption=texts.iphone_instructions_apps_caption(),
-        kb=iphone_instructions_apps_keyboard(back_to=back_to),
+        kb=iphone_instructions_apps_keyboard(back_to=back_to, parent=parent),
         path=INSTRUCTIONS_IOS_APPS_IMAGE_PATH,
         log_label="iphone instructions apps",
+    )
+
+
+async def apply_iphone_instr_happ_detail_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    parent: str,
+    back_to: str,
+) -> None:
+    await _apply_iphone_visual_screen(
+        query,
+        bot,
+        caption=texts.iphone_instr_happ_detail_caption(),
+        kb=iphone_instructions_ios_detail_keyboard(parent=parent, back_to=back_to),
+        path=INSTRUCTIONS_IOS_IPHONE_DETAIL_IMAGE_PATH,
+        log_label="iphone instr happ",
+    )
+
+
+async def apply_iphone_instr_hiddify_detail_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    parent: str,
+    back_to: str,
+) -> None:
+    await _apply_iphone_visual_screen(
+        query,
+        bot,
+        caption=texts.iphone_instr_hiddify_detail_caption(),
+        kb=iphone_instructions_ios_detail_keyboard(parent=parent, back_to=back_to),
+        path=INSTRUCTIONS_IOS_IPHONE_DETAIL_IMAGE_PATH,
+        log_label="iphone instr hiddify",
+    )
+
+
+async def apply_iphone_instr_v2raytun_detail_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    parent: str,
+    back_to: str,
+) -> None:
+    await _apply_iphone_visual_screen(
+        query,
+        bot,
+        caption=texts.iphone_instr_v2raytun_detail_caption(),
+        kb=iphone_instructions_ios_detail_keyboard(parent=parent, back_to=back_to),
+        path=INSTRUCTIONS_IOS_IPHONE_DETAIL_IMAGE_PATH,
+        log_label="iphone instr v2raytun",
     )
 
 
