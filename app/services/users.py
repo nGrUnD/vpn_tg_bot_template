@@ -165,12 +165,13 @@ async def save_trial_access(
     *,
     client_uuid: str,
     sub_id: str,
-    days: int,
     subscription_url: str | None,
     backend_key: str,
+    expires_at: datetime,
 ) -> None:
     pool = await get_pool()
-    expires_at = _utcnow() + timedelta(days=max(days, 1))
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
     async with pool.acquire() as conn:
         await conn.execute(
             """
@@ -190,3 +191,25 @@ async def save_trial_access(
             subscription_url,
             backend_key,
         )
+
+
+async def get_trial_reissue_row(telegram_id: int) -> asyncpg.Record | None:
+    """Активный trial: UUID, backend, дата окончания (для перевыпуска)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT trial_client_uuid, trial_backend_key, trial_expires_at
+            FROM users
+            WHERE telegram_id = $1
+            """,
+            telegram_id,
+        )
+    if row is None or row["trial_expires_at"] is None or not str(row["trial_client_uuid"] or "").strip():
+        return None
+    exp: datetime = row["trial_expires_at"]
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp <= _utcnow():
+        return None
+    return row

@@ -166,20 +166,17 @@ class ThreeXUIClient:
                 continue
         return ids
 
-    async def create_trial_client_all_inbounds(
+    async def create_client_all_inbounds(
         self,
         telegram_id: int,
-        expire_days: int,
         *,
-        total_gb: int = 0,
+        expiry_ts_ms: int,
+        total_bytes: int,
         limit_ip: int = DEFAULT_IP_LIMIT,
     ) -> ThreeXUIClientInfo:
         """
-        Один логический trial: один и тот же Xray client id (UUID) и один subId на всех inbounds,
-        чтобы одна ссылка подписки тянула все узлы.
-
-        Email в 3x-ui должен быть уникален на панели, поэтому на каждый inbound свой email
-        (суффикс inbound id + фрагмент subId), иначе addClient даёт Duplicate email.
+        Новый клиент на всех inbounds: один UUID, один subId, уникальный email на inbound.
+        total_bytes: 0 = безлимит (как в панели 3x-ui).
         """
         await self._ensure_login()
 
@@ -187,12 +184,11 @@ class ThreeXUIClient:
         if not inbound_ids:
             inbound_ids = [self._config.inbound_id]
 
-        expiry_ts_ms = int((time.time() + expire_days * 24 * 60 * 60) * 1000)
         client_uuid = str(uuid.uuid4())
         sub_id = self._generate_sub_id()
         sub_tag = sub_id[:16] if len(sub_id) >= 8 else sub_id
         logical_label = f"tg_{telegram_id}_trial"
-        total_bytes = 0 if total_gb <= 0 else int(total_gb) * (1024**3)
+        tb = max(int(total_bytes), 0)
 
         ok: list[int] = []
         failed: list[tuple[int, str]] = []
@@ -205,8 +201,8 @@ class ThreeXUIClient:
                 "flow": "",
                 "email": inbound_email,
                 "limitIp": max(int(limit_ip), 0),
-                "totalGB": total_bytes,
-                "expiryTime": expiry_ts_ms,
+                "totalGB": tb,
+                "expiryTime": int(expiry_ts_ms),
                 "enable": True,
                 "tgId": int(telegram_id),
                 "subId": sub_id,
@@ -273,6 +269,99 @@ class ThreeXUIClient:
             provisioned_inbound_ids=ok,
             failed_inbounds=failed,
         )
+
+    async def create_trial_client_all_inbounds(
+        self,
+        telegram_id: int,
+        expire_days: int,
+        *,
+        total_gb: int = 0,
+        limit_ip: int = DEFAULT_IP_LIMIT,
+    ) -> ThreeXUIClientInfo:
+        """
+        Один логический trial: один и тот же Xray client id (UUID) и один subId на всех inbounds,
+        чтобы одна ссылка подписки тянула все узлы.
+
+        Email в 3x-ui должен быть уникален на панели, поэтому на каждый inbound свой email
+        (суффикс inbound id + фрагмент subId), иначе addClient даёт Duplicate email.
+        """
+        expiry_ts_ms = int((time.time() + expire_days * 24 * 60 * 60) * 1000)
+        total_bytes = 0 if total_gb <= 0 else int(total_gb) * (1024**3)
+        return await self.create_client_all_inbounds(
+            telegram_id,
+            expiry_ts_ms=expiry_ts_ms,
+            total_bytes=total_bytes,
+            limit_ip=limit_ip,
+        )
+
+    async def delete_client_uuid_from_all_inbounds(self, client_uuid: str) -> None:
+        """Удалить клиента по UUID из всех включённых inbound (игнор ошибок «уже нет»)."""
+        cu = str(client_uuid).strip()
+        if not cu:
+            return
+        await self._ensure_login()
+        ids = await self.list_inbound_ids(only_enabled=True)
+        if not ids:
+            ids = [self._config.inbound_id]
+        safe_id = urllib.parse.quote(cu, safe="-_")
+        for iid in ids:
+            try:
+                resp = await self._client.post(
+                    f"/panel/api/inbounds/{int(iid)}/delClient/{safe_id}",
+                    cookies=self._auth_cookies,
+                )
+                resp.raise_for_status()
+                body = resp.json()
+                if isinstance(body, dict) and body.get("success") is False:
+                    logger.info(
+                        "3x-ui delClient inbound=%s: %s",
+                        iid,
+                        str(body.get("msg") or body.get("message") or "").strip(),
+                    )
+            except Exception:
+                logger.debug("3x-ui delClient inbound=%s пропущен", iid, exc_info=True)
+
+    async def collect_client_quota_snapshot(self, client_uuid: str) -> Optional[tuple[int, int, int]]:
+        """
+        По UUID ищет клиента во включённых inbounds.
+        Возвращает (expiry_ts_ms, limit_total_bytes, used_bytes) или None.
+        used_bytes — максимум по inbounds (без суммирования дублей).
+        """
+        cu = str(client_uuid).strip().lower()
+        if not cu:
+            return None
+        await self._ensure_login()
+        ids = await self.list_inbound_ids(only_enabled=True)
+        if not ids:
+            ids = [self._config.inbound_id]
+        exp_ms = 0
+        limit_b = 0
+        used_max = 0
+        found = False
+        for iid in ids:
+            try:
+                obj = await self._get_inbound(iid)
+                if not obj:
+                    continue
+                for c in self._extract_clients(obj):
+                    if str(c.get("id") or "").strip().lower() != cu:
+                        continue
+                    found = True
+                    tb = int(c.get("totalGB") or 0)
+                    if tb > 0:
+                        limit_b = max(limit_b, tb)
+                    up = int(c.get("up") or 0)
+                    down = int(c.get("down") or 0)
+                    tot = int(c.get("total") or 0)
+                    used = int(tot) if tot > 0 else up + down
+                    used_max = max(used_max, used)
+                    exp_ms = max(exp_ms, int(c.get("expiryTime") or 0))
+            except Exception:
+                logger.debug("collect quota inbound=%s", iid, exc_info=True)
+                continue
+        if not found:
+            return None
+        return (exp_ms, limit_b, used_max)
 
     async def _get_inbound(self, inbound_id: int) -> Optional[dict[str, Any]]:
         await self._ensure_login()

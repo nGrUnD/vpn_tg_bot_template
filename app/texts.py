@@ -244,6 +244,29 @@ def android_guide_caption(subscription_url: str | None) -> str:
     return body
 
 
+VPN_TROUBLESHOOT_PROCESSING_CAPTION = (
+    "🔎 <b>Не работает VPN?</b>\n\n"
+    "Перевыпускаю подписку. Это может занять до минуты."
+)
+
+
+VPN_REISSUE_SUCCESS_CAPTION = (
+    "🔎 <b>Не работает VPN?</b>\n\n"
+    "Подписку перевыпустили ✅ Старую ссылку отключили.\n\n"
+    "Теперь откройте «⭐️ Мои подключения», удалите старую подписку в приложении и подключите новую. "
+    "Если после этого VPN всё равно не работает, напишите в поддержку."
+)
+
+
+def vpn_reissue_error_caption(detail: str) -> str:
+    d = html.escape((detail or "").strip() or "неизвестная ошибка", quote=False)
+    return (
+        "🔎 <b>Не работает VPN?</b>\n\n"
+        f"Не удалось перевыпустить подписку: {d}\n\n"
+        "Попробуйте позже или напишите в поддержку."
+    )
+
+
 SUPPORT_CAPTION = (
     "🛠 <b>Поддержка</b>\n\n"
     "<b>Если VPN не работает:</b>\n"

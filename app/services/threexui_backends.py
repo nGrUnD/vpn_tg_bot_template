@@ -36,6 +36,15 @@ async def close_threexui_registry(registry: dict[str, ThreeXUIClient]) -> None:
         await client.close()
 
 
+def pick_alternate_backend_key(runtime: ThreexuiRuntime, current_key: str) -> str | None:
+    """Другая включённая панель (например Стокгольм вместо Германии)."""
+    cur = (current_key or "").strip()
+    for k in sorted(runtime.registry.keys()):
+        if k != cur:
+            return k
+    return None
+
+
 def threexui_client_for_backend(
     runtime: ThreexuiRuntime,
     backend_key: str | None,

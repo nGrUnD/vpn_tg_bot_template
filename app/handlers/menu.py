@@ -12,6 +12,7 @@ from app.services.connect_android import apply_android_guide_screen
 from app.services.connect_iphone import apply_iphone_guide_screen
 from app.services.connect_windows_mac import apply_windows_mac_guide_screen
 from app.services.trial_connections import apply_trial_connections_screen
+from app.services.vpn_troubleshoot_screen import run_vpn_troubleshoot_reissue
 from app.services.users import ensure_user, get_trial_subscription_url, trial_still_active
 from app.services.welcome import show_welcome_on_message
 
@@ -144,9 +145,28 @@ async def on_android_instruction(query: CallbackQuery) -> None:
     )
 
 
-@router.callback_query(F.data == "vpn_troubleshoot")
-async def on_vpn_troubleshoot(query: CallbackQuery) -> None:
-    await safe_answer(query, "Раздел «Не работает VPN» — в разработке.", show_alert=True)
+@router.callback_query(
+    lambda q: (q.data or "") == "vpn_troubleshoot"
+    or (q.data or "").startswith("vpn_troubleshoot:")
+)
+async def on_vpn_troubleshoot(
+    query: CallbackQuery,
+    bot: Bot,
+    threexui_runtime: ThreexuiRuntime,
+) -> None:
+    await safe_answer(query)
+    raw = query.data or ""
+    back_to = raw.split(":", 1)[1] if raw.startswith("vpn_troubleshoot:") else "main"
+    if query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    await run_vpn_troubleshoot_reissue(
+        query,
+        bot,
+        query.from_user.id,
+        back_to=back_to or "main",
+        runtime=threexui_runtime,
+    )
 
 
 @router.callback_query(F.data == "buy_access")

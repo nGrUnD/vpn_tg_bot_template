@@ -7,6 +7,8 @@ from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.types import CallbackQuery
 
+from datetime import timedelta
+
 from app.callback_safe import safe_answer
 from app.config import settings
 from app.services.threexui_backends import (
@@ -16,6 +18,7 @@ from app.services.threexui_backends import (
 )
 from app.services.trial_connections import apply_trial_connections_screen
 from app.services.users import (
+    _utcnow,
     clear_trial_in_db,
     ensure_user,
     get_trial_panel_sync_fields,
@@ -117,13 +120,14 @@ async def run_trial_activation_flow(
         for iid, msg in info.failed_inbounds:
             logger.warning("3x-ui: inbound %s не принял клиента: %s", iid, msg)
 
+    expires_at = _utcnow() + timedelta(days=max(settings.trial_days, 1))
     await save_trial_access(
         tid,
         client_uuid=info.client_id,
         sub_id=info.sub_id or "",
-        days=settings.trial_days,
         subscription_url=info.subscription_url,
         backend_key=backend_cfg.key,
+        expires_at=expires_at,
     )
 
     await apply_trial_connections_screen(

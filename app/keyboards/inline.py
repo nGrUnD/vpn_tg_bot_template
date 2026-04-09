@@ -98,7 +98,7 @@ def trial_connections_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(
                 text="🔎 Не работает VPN?",
-                callback_data="vpn_troubleshoot",
+                callback_data=f"vpn_troubleshoot:{back_to}",
             ),
         ],
         [
@@ -223,6 +223,25 @@ def windows_mac_guide_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="⬅️ Назад",
                     callback_data=f"trial_back:{back_to}",
+                ),
+            ],
+        ],
+    )
+
+
+def vpn_troubleshoot_actions_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⭐️ Мои подключения",
+                    callback_data=f"trial_devices:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🛠 Тех поддержка",
+                    callback_data="support",
                 ),
             ],
         ],
