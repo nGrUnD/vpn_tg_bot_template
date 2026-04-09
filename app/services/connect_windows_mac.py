@@ -20,13 +20,14 @@ async def apply_windows_mac_guide_screen(
     *,
     back_to: str,
     subscription_url: str | None,
+    back_callback_data: str | None = None,
 ) -> None:
     msg = query.message
     if msg is None:
         return
 
     caption = texts.windows_mac_guide_caption(subscription_url)
-    kb = windows_mac_guide_keyboard(back_to=back_to)
+    kb = windows_mac_guide_keyboard(back_to=back_to, back_callback_data=back_callback_data)
     path = WINDOWS_MAC_GUIDE_IMAGE_PATH
 
     if path.is_file():

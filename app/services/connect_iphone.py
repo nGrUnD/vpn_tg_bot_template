@@ -20,13 +20,14 @@ async def apply_iphone_guide_screen(
     *,
     back_to: str,
     subscription_url: str | None,
+    back_callback_data: str | None = None,
 ) -> None:
     msg = query.message
     if msg is None:
         return
 
     caption = texts.iphone_guide_caption(subscription_url)
-    kb = iphone_guide_keyboard(back_to=back_to)
+    kb = iphone_guide_keyboard(back_to=back_to, back_callback_data=back_callback_data)
     path = IPHONE_GUIDE_IMAGE_PATH
 
     if path.is_file():

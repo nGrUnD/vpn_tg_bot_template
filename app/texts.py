@@ -245,6 +245,85 @@ def android_apps_instruction_caption() -> str:
     )
 
 
+def android_trial_guide_caption(subscription_url: str | None) -> str:
+    happ = html.escape(ANDROID_HAPP_PLAY_URL, quote=True)
+    hid = html.escape(ANDROID_HIDDIFY_PLAY_URL, quote=True)
+    v2 = html.escape(ANDROID_V2RAYTUN_PLAY_URL, quote=True)
+    body = (
+        "📱 <b>Подключение для Android</b>\n\n"
+        "Подписка активирована ✅\n\n"
+        "Откройте ссылку на страницу подключения в боте.\n\n"
+        "Установите одно из приложений, если оно ещё не установлено:\n"
+        f'— hApp — <a href="{happ}">скачать</a>\n'
+        f'— Hiddify — <a href="{hid}">скачать</a>\n'
+        f'— v2RayTun — <a href="{v2}">скачать</a>\n\n'
+        "На странице подключения нажмите кнопку открытия в выбранном приложении "
+        "для автоимпорта.\n\n"
+    )
+    and_link = subscription_url_for_android(subscription_url)
+    if and_link:
+        su = html.escape(and_link, quote=True)
+        body += f'Ссылка на страницу подключения: <a href="{su}">открыть</a>'
+    else:
+        body += (
+            "Ссылка на страницу подключения пока недоступна — активируйте пробный период "
+            "и откройте «⭐️ Мои подключения»."
+        )
+    return body
+
+
+def android_happ_instruction_caption() -> str:
+    play = html.escape(ANDROID_HAPP_PLAY_URL, quote=True)
+    return (
+        "📝 <b>Инструкции по подключению</b>\n"
+        "📱 <b>Android</b> · <b>Happ</b>\n\n"
+        "Приложение <b>Happ</b> рекомендуем для Android по умолчанию. "
+        "Оно обычно проще для первого подключения.\n\n"
+        f'<b>Скачать Happ ⬇️</b> <a href="{play}">Happ</a>\n\n'
+        "<b>Как подключить Happ:</b>\n"
+        "1. Установите Happ\n"
+        "2. Откройте «⭐️ Мои подключения»\n"
+        "3. Выберите Android\n"
+        "4. Нажмите «Открыть в Happ» на странице подключения\n"
+        "5. Подтвердите импорт и включите VPN"
+    )
+
+
+def android_hiddify_instruction_caption() -> str:
+    hid = html.escape(ANDROID_HIDDIFY_PLAY_URL, quote=True)
+    v2 = html.escape(ANDROID_V2RAYTUN_PLAY_URL, quote=True)
+    return (
+        "📝 <b>Инструкции по подключению</b>\n"
+        "📱 <b>Android</b> · <b>Hiddify</b>\n\n"
+        "Приложение <b>Hiddify</b> рекомендуем для Android. "
+        "Если вам это не подходит, скачайте приложение <b>v2RayTun</b> из "
+        f'<a href="{v2}">Play Маркет</a>.\n\n'
+        f'<b>📲 Скачать Hiddify ⬇️</b> <a href="{hid}">Hiddify</a>\n\n'
+        "<b>Как подключить Hiddify:</b>\n"
+        "1. Установите Hiddify\n"
+        "2. Откройте «⭐️ Мои подключения»\n"
+        "3. Выберите Android\n"
+        "4. Нажмите «Открыть в V2RayNG» на странице подключения\n"
+        "5. Подтвердите импорт и включите VPN"
+    )
+
+
+def android_v2raytun_instruction_caption() -> str:
+    v2 = html.escape(ANDROID_V2RAYTUN_PLAY_URL, quote=True)
+    return (
+        "📝 <b>Инструкции по подключению</b>\n"
+        "📱 <b>Android</b> · <b>V2RayTun</b>\n\n"
+        "Приложение <b>V2RayTun</b> рекомендуем для Android.\n\n"
+        f'<b>Скачать V2RayTun ⬇️</b> <a href="{v2}">V2RayTun</a>\n\n'
+        "<b>Как подключить V2RayTun:</b>\n"
+        "1. Установите V2RayTun\n"
+        "2. Откройте «⭐️ Мои подключения»\n"
+        "3. Выберите Android\n"
+        "4. Нажмите «Открыть в V2RayTun» на странице подключения\n"
+        "5. Подтвердите импорт и включите VPN"
+    )
+
+
 VPN_TROUBLESHOOT_PROCESSING_CAPTION = (
     "🔎 <b>Не работает VPN?</b>\n\n"
     "Перевыпускаю подписку. Это может занять до минуты."

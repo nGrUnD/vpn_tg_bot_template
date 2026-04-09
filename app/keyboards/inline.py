@@ -1,6 +1,5 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from app import texts as app_texts
 from app.config import settings
 from app.ru_plural import trial_button_caption
 
@@ -85,13 +84,13 @@ def instructions_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text="iPhone 🍏",
-                    callback_data=f"conn_iphone:{back_to}",
+                    callback_data=f"instructions_iphone:{back_to}",
                 ),
             ],
             [
                 InlineKeyboardButton(
                     text="Windows/Mac 💻",
-                    callback_data=f"conn_windows:{back_to}",
+                    callback_data=f"instructions_windows:{back_to}",
                 ),
             ],
             [
@@ -180,46 +179,15 @@ def profile_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def android_apps_choice_keyboard(*, back_callback_data: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="⭐️ Рекомендуем Happ",
-                    url=app_texts.ANDROID_HAPP_PLAY_URL,
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    text="Hiddify",
-                    url=app_texts.ANDROID_HIDDIFY_PLAY_URL,
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    text="V2RayTun",
-                    url=app_texts.ANDROID_V2RAYTUN_PLAY_URL,
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    text="⬅️ Назад",
-                    callback_data=back_callback_data,
-                ),
-            ],
-        ],
-    )
-
-
-def iphone_guide_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
-    inst = settings.iphone_instruction_url
+def android_trial_guide_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    inst = settings.android_instruction_url
     inst_row = (
-        [InlineKeyboardButton(text="Инструкция для iPhone", url=inst)]
+        [InlineKeyboardButton(text="Инструкция для Android", url=inst)]
         if inst
         else [
             InlineKeyboardButton(
-                text="Инструкция для iPhone",
-                callback_data="iphone_instruction",
+                text="Инструкция для Android",
+                callback_data="android_instruction",
             ),
         ]
     )
@@ -242,7 +210,104 @@ def iphone_guide_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
     )
 
 
-def windows_mac_guide_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+def android_apps_choice_keyboard(
+    *,
+    back_callback_data: str,
+    happ_callback_data: str,
+    hiddify_callback_data: str,
+    v2raytun_callback_data: str,
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⭐️ Рекомендуем Happ",
+                    callback_data=happ_callback_data,
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Hiddify",
+                    callback_data=hiddify_callback_data,
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="V2RayTun",
+                    callback_data=v2raytun_callback_data,
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=back_callback_data,
+                ),
+            ],
+        ],
+    )
+
+
+def android_instructions_android_sub_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"instructions_android:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📌 Главное меню",
+                    callback_data="main_menu",
+                ),
+            ],
+        ],
+    )
+
+
+def iphone_guide_keyboard(
+    *,
+    back_to: str,
+    back_callback_data: str | None = None,
+) -> InlineKeyboardMarkup:
+    inst = settings.iphone_instruction_url
+    inst_row = (
+        [InlineKeyboardButton(text="Инструкция для iPhone", url=inst)]
+        if inst
+        else [
+            InlineKeyboardButton(
+                text="Инструкция для iPhone",
+                callback_data="iphone_instruction",
+            ),
+        ]
+    )
+    back_row = back_callback_data if back_callback_data is not None else f"trial_back:{back_to}"
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            inst_row,
+            [
+                InlineKeyboardButton(
+                    text="Подключить другое устройство",
+                    callback_data=f"trial_devices:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=back_row,
+                ),
+            ],
+        ],
+    )
+
+
+def windows_mac_guide_keyboard(
+    *,
+    back_to: str,
+    back_callback_data: str | None = None,
+) -> InlineKeyboardMarkup:
+    back_row = back_callback_data if back_callback_data is not None else f"trial_back:{back_to}"
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -254,7 +319,7 @@ def windows_mac_guide_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text="⬅️ Назад",
-                    callback_data=f"trial_back:{back_to}",
+                    callback_data=back_row,
                 ),
             ],
         ],

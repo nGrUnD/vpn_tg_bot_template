@@ -1,39 +1,42 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal
+from pathlib import Path
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto
+from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, InlineKeyboardMarkup
 
 from app import texts
-from app.keyboards.inline import android_apps_choice_keyboard
-from app.paths import ANDROID_GUIDE_IMAGE_PATH
+from app.keyboards.inline import (
+    android_apps_choice_keyboard,
+    android_instructions_android_sub_keyboard,
+    android_trial_guide_keyboard,
+)
+from app.paths import (
+    ANDROID_INSTRUCTIONS_APPS_IMAGE_PATH,
+    ANDROID_INSTRUCTIONS_HAPP_IMAGE_PATH,
+    ANDROID_INSTRUCTIONS_HIDDIFY_IMAGE_PATH,
+    ANDROID_INSTRUCTIONS_V2RAYTUN_IMAGE_PATH,
+    ANDROID_TRIAL_GUIDE_IMAGE_PATH,
+)
 
 logger = logging.getLogger(__name__)
 
 
-async def apply_android_guide_screen(
+async def _apply_photo_screen(
     query: CallbackQuery,
     bot: Bot,
     *,
-    back_to: str,
-    back_navigation: Literal["trial", "instructions"] = "trial",
+    caption: str,
+    kb: InlineKeyboardMarkup,
+    path: Path,
+    log_label: str,
 ) -> None:
     msg = query.message
     if msg is None:
         return
-
-    caption = texts.android_apps_instruction_caption()
-    back_cb = (
-        f"instructions:{back_to}"
-        if back_navigation == "instructions"
-        else f"trial_back:{back_to}"
-    )
-    kb = android_apps_choice_keyboard(back_callback_data=back_cb)
-    path = ANDROID_GUIDE_IMAGE_PATH
 
     if path.is_file():
         media = InputMediaPhoto(
@@ -45,7 +48,7 @@ async def apply_android_guide_screen(
             await msg.edit_media(media=media, reply_markup=kb)
             return
         except TelegramBadRequest as e:
-            logger.info("edit_media android guide не удался (%s), отправляю новое", e)
+            logger.info("edit_media %s не удался (%s), отправляю новое", log_label, e)
             try:
                 await msg.delete()
             except TelegramBadRequest:
@@ -59,7 +62,7 @@ async def apply_android_guide_screen(
             )
             return
 
-    logger.warning("Файл инструкции Android не найден: %s", path)
+    logger.warning("Файл не найден (%s): %s", log_label, path)
     try:
         await msg.edit_text(caption, parse_mode=ParseMode.HTML, reply_markup=kb)
     except TelegramBadRequest:
@@ -69,3 +72,90 @@ async def apply_android_guide_screen(
             parse_mode=ParseMode.HTML,
             reply_markup=kb,
         )
+
+
+async def apply_android_trial_guide_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    back_to: str,
+    subscription_url: str | None,
+) -> None:
+    await _apply_photo_screen(
+        query,
+        bot,
+        caption=texts.android_trial_guide_caption(subscription_url),
+        kb=android_trial_guide_keyboard(back_to=back_to),
+        path=ANDROID_TRIAL_GUIDE_IMAGE_PATH,
+        log_label="android trial",
+    )
+
+
+async def apply_android_instructions_apps_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    back_to: str,
+) -> None:
+    kb = android_apps_choice_keyboard(
+        back_callback_data=f"instructions:{back_to}",
+        happ_callback_data=f"instructions_android_happ:{back_to}",
+        hiddify_callback_data=f"instructions_android_hiddify:{back_to}",
+        v2raytun_callback_data=f"instructions_android_v2raytun:{back_to}",
+    )
+    await _apply_photo_screen(
+        query,
+        bot,
+        caption=texts.android_apps_instruction_caption(),
+        kb=kb,
+        path=ANDROID_INSTRUCTIONS_APPS_IMAGE_PATH,
+        log_label="android instructions apps",
+    )
+
+
+async def apply_android_happ_detail_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    back_to: str,
+) -> None:
+    await _apply_photo_screen(
+        query,
+        bot,
+        caption=texts.android_happ_instruction_caption(),
+        kb=android_instructions_android_sub_keyboard(back_to=back_to),
+        path=ANDROID_INSTRUCTIONS_HAPP_IMAGE_PATH,
+        log_label="android happ detail",
+    )
+
+
+async def apply_android_hiddify_detail_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    back_to: str,
+) -> None:
+    await _apply_photo_screen(
+        query,
+        bot,
+        caption=texts.android_hiddify_instruction_caption(),
+        kb=android_instructions_android_sub_keyboard(back_to=back_to),
+        path=ANDROID_INSTRUCTIONS_HIDDIFY_IMAGE_PATH,
+        log_label="android hiddify detail",
+    )
+
+
+async def apply_android_v2raytun_detail_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    back_to: str,
+) -> None:
+    await _apply_photo_screen(
+        query,
+        bot,
+        caption=texts.android_v2raytun_instruction_caption(),
+        kb=android_instructions_android_sub_keyboard(back_to=back_to),
+        path=ANDROID_INSTRUCTIONS_V2RAYTUN_IMAGE_PATH,
+        log_label="android v2raytun detail",
+    )

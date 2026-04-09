@@ -8,7 +8,13 @@ from app.services.profile_screen import apply_profile_screen
 from app.services.support_screen import apply_support_screen
 from app.services.threexui_backends import ThreexuiRuntime
 from app.services.trial_activate import run_trial_activation_flow
-from app.services.connect_android import apply_android_guide_screen
+from app.services.connect_android import (
+    apply_android_happ_detail_screen,
+    apply_android_hiddify_detail_screen,
+    apply_android_instructions_apps_screen,
+    apply_android_trial_guide_screen,
+    apply_android_v2raytun_detail_screen,
+)
 from app.services.connect_iphone import apply_iphone_guide_screen
 from app.services.connect_windows_mac import apply_windows_mac_guide_screen
 from app.services.trial_connections import apply_trial_connections_screen
@@ -69,6 +75,26 @@ async def on_conn_windows(query: CallbackQuery, bot: Bot) -> None:
     await apply_windows_mac_guide_screen(query, bot, back_to=back_to, subscription_url=sub)
 
 
+@router.callback_query(F.data.startswith("instructions_windows:"))
+async def on_instructions_windows(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    back_to = (query.data or "").split(":", 1)[1]
+    if query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    tid = query.from_user.id
+    sub: str | None = None
+    if await trial_still_active(tid):
+        sub = await get_trial_subscription_url(tid)
+    await apply_windows_mac_guide_screen(
+        query,
+        bot,
+        back_to=back_to or "main",
+        subscription_url=sub,
+        back_callback_data=f"instructions:{back_to or 'main'}",
+    )
+
+
 @router.callback_query(F.data.startswith("trial_devices:"))
 async def on_trial_devices(query: CallbackQuery, bot: Bot) -> None:
     await safe_answer(query)
@@ -111,6 +137,27 @@ async def on_conn_iphone(query: CallbackQuery, bot: Bot) -> None:
     await apply_iphone_guide_screen(query, bot, back_to=back_to, subscription_url=sub)
 
 
+@router.callback_query(F.data.startswith("instructions_iphone:"))
+async def on_instructions_iphone(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    back_to = (query.data or "").split(":", 1)[1]
+    if query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    tid = query.from_user.id
+    sub: str | None = None
+    if await trial_still_active(tid):
+        sub = await get_trial_subscription_url(tid)
+    bt = back_to or "main"
+    await apply_iphone_guide_screen(
+        query,
+        bot,
+        back_to=bt,
+        subscription_url=sub,
+        back_callback_data=f"instructions:{bt}",
+    )
+
+
 @router.callback_query(F.data == "iphone_instruction")
 async def on_iphone_instruction(query: CallbackQuery) -> None:
     await safe_answer(
@@ -130,11 +177,57 @@ async def on_conn_android(query: CallbackQuery, bot: Bot) -> None:
     if query.from_user is None:
         return
     await ensure_user(query.from_user)
-    await apply_android_guide_screen(
+    tid = query.from_user.id
+    sub: str | None = None
+    if await trial_still_active(tid):
+        sub = await get_trial_subscription_url(tid)
+    await apply_android_trial_guide_screen(
         query,
         bot,
         back_to=back_to,
-        back_navigation="trial",
+        subscription_url=sub,
+    )
+
+
+@router.callback_query(F.data.startswith("instructions_android_hiddify:"))
+async def on_instructions_android_hiddify(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    back_to = (query.data or "").split(":", 1)[1]
+    if query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    await apply_android_hiddify_detail_screen(
+        query,
+        bot,
+        back_to=back_to or "main",
+    )
+
+
+@router.callback_query(F.data.startswith("instructions_android_v2raytun:"))
+async def on_instructions_android_v2raytun(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    back_to = (query.data or "").split(":", 1)[1]
+    if query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    await apply_android_v2raytun_detail_screen(
+        query,
+        bot,
+        back_to=back_to or "main",
+    )
+
+
+@router.callback_query(F.data.startswith("instructions_android_happ:"))
+async def on_instructions_android_happ(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    back_to = (query.data or "").split(":", 1)[1]
+    if query.from_user is None:
+        return
+    await ensure_user(query.from_user)
+    await apply_android_happ_detail_screen(
+        query,
+        bot,
+        back_to=back_to or "main",
     )
 
 
@@ -145,11 +238,10 @@ async def on_instructions_android(query: CallbackQuery, bot: Bot) -> None:
     if query.from_user is None:
         return
     await ensure_user(query.from_user)
-    await apply_android_guide_screen(
+    await apply_android_instructions_apps_screen(
         query,
         bot,
         back_to=back_to or "main",
-        back_navigation="instructions",
     )
 
 
