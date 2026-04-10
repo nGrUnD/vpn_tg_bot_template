@@ -152,6 +152,26 @@ WINDOWS_MAC_HIDDIFY_DOWNLOAD_URL = (
     "https://github.com/hiddify/hiddify-app/releases/latest/download/Hiddify-Windows-Setup-x64.exe"
 )
 
+WINDOWS_MAC_INSTRUCTION_TELEGRAPH_URL = (
+    "https://telegra.ph/Instrukciya-po-nastrojke-RaccsterVPN-na-WINDOWS-04-10"
+)
+WINDOWS_MAC_INSTRUCTION_HAPP_TELEGRAPH_URL = (
+    "https://telegra.ph/Instrukciya-po-nastrojke-RaccsterVPN-na-WINDOWS-cherez-Happ-04-10"
+)
+
+
+def windows_mac_instructions_caption() -> str:
+    """Экран «Инструкции» → Windows/Mac — ссылки на Telegraph."""
+    u1 = html.escape(WINDOWS_MAC_INSTRUCTION_TELEGRAPH_URL, quote=True)
+    u2 = html.escape(WINDOWS_MAC_INSTRUCTION_HAPP_TELEGRAPH_URL, quote=True)
+    return (
+        "📝 <b>Инструкции по подключению</b>\n"
+        "💻 <b>Windows / Mac</b>\n\n"
+        "Инструкция по настройке RaccsterVPN на Windows / Mac.\n\n"
+        f'Инструкция по подключению ⬇️ <a href="{u1}">Windows / Mac</a>\n\n'
+        f'Инструкция по подключению через hApp ⬇️ <a href="{u2}">Windows / Mac</a>'
+    )
+
 
 def windows_mac_guide_caption(subscription_url: str | None) -> str:
     """Инструкция Windows/Mac; ссылки приложений — текст «скачать»."""

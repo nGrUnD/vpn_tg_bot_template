@@ -373,6 +373,25 @@ def windows_mac_guide_keyboard(
     )
 
 
+def windows_mac_instructions_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"instructions:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📌 Главное меню",
+                    callback_data="main_menu",
+                ),
+            ],
+        ],
+    )
+
+
 def vpn_troubleshoot_actions_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[

@@ -8,8 +8,8 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto
 
 from app import texts
-from app.keyboards.inline import windows_mac_guide_keyboard
-from app.paths import WINDOWS_MAC_GUIDE_IMAGE_PATH
+from app.keyboards.inline import windows_mac_guide_keyboard, windows_mac_instructions_keyboard
+from app.paths import INSTRUCTIONS_WINDOWS_MAC_IMAGE_PATH, WINDOWS_MAC_GUIDE_IMAGE_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -21,14 +21,24 @@ async def apply_windows_mac_guide_screen(
     back_to: str,
     subscription_url: str | None,
     back_callback_data: str | None = None,
+    from_instructions: bool = False,
 ) -> None:
     msg = query.message
     if msg is None:
         return
 
-    caption = texts.windows_mac_guide_caption(subscription_url)
-    kb = windows_mac_guide_keyboard(back_to=back_to, back_callback_data=back_callback_data)
-    path = WINDOWS_MAC_GUIDE_IMAGE_PATH
+    if from_instructions:
+        caption = texts.windows_mac_instructions_caption()
+        kb = windows_mac_instructions_keyboard(back_to=back_to)
+        path = (
+            INSTRUCTIONS_WINDOWS_MAC_IMAGE_PATH
+            if INSTRUCTIONS_WINDOWS_MAC_IMAGE_PATH.is_file()
+            else WINDOWS_MAC_GUIDE_IMAGE_PATH
+        )
+    else:
+        caption = texts.windows_mac_guide_caption(subscription_url)
+        kb = windows_mac_guide_keyboard(back_to=back_to, back_callback_data=back_callback_data)
+        path = WINDOWS_MAC_GUIDE_IMAGE_PATH
 
     if path.is_file():
         media = InputMediaPhoto(

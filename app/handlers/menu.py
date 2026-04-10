@@ -89,16 +89,12 @@ async def on_instructions_windows(query: CallbackQuery, bot: Bot) -> None:
     if query.from_user is None:
         return
     await ensure_user(query.from_user)
-    tid = query.from_user.id
-    sub: str | None = None
-    if await trial_still_active(tid):
-        sub = await get_trial_subscription_url(tid)
     await apply_windows_mac_guide_screen(
         query,
         bot,
         back_to=back_to or "main",
-        subscription_url=sub,
-        back_callback_data=f"instructions:{back_to or 'main'}",
+        subscription_url=None,
+        from_instructions=True,
     )
 
 
