@@ -18,7 +18,7 @@ def welcome_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text="🛒 Купить доступ",
-                    callback_data="buy_access",
+                    callback_data="buy_access:welcome",
                 ),
             ],
             [
@@ -45,7 +45,7 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text="🛒 Купить доступ",
-                    callback_data="buy_access",
+                    callback_data="buy_access:main",
                 ),
             ],
             [
@@ -160,7 +160,7 @@ def profile_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text="🛒 Купить доступ",
-                    callback_data="buy_access",
+                    callback_data="buy_access:profile",
                 ),
             ],
             [
@@ -173,6 +173,37 @@ def profile_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="⬅️ Назад",
                     callback_data="profile_back_main",
+                ),
+            ],
+        ],
+    )
+
+
+def buy_access_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Рубли 💳",
+                    callback_data="buy_pay_rub",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Криптовалюта🌑",
+                    callback_data="buy_pay_crypto",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🎁 Оплатить с бонусного баланса",
+                    callback_data="buy_pay_bonus",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"buy_access_back:{back_to}",
                 ),
             ],
         ],

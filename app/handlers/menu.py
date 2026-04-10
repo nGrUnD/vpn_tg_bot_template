@@ -27,6 +27,7 @@ from app.services.connect_windows_mac import apply_windows_mac_guide_screen
 from app.services.trial_connections import apply_trial_connections_screen
 from app.services.instructions_screen import apply_instructions_screen
 from app.services.vpn_troubleshoot_screen import run_vpn_troubleshoot_reissue
+from app.services.buy_access_screen import apply_buy_access_screen
 from app.services.users import ensure_user, get_trial_subscription_url, trial_still_active
 from app.services.welcome import show_welcome_on_message
 
@@ -345,9 +346,43 @@ async def on_vpn_troubleshoot(
     )
 
 
-@router.callback_query(F.data == "buy_access")
-async def on_buy_access(query: CallbackQuery) -> None:
-    await safe_answer(query, "Покупка доступа — в разработке.", show_alert=True)
+@router.callback_query(
+    lambda q: (q.data or "") == "buy_access" or (q.data or "").startswith("buy_access:")
+)
+async def on_buy_access(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    raw = query.data or ""
+    back_to = raw.split(":", 1)[1] if raw.startswith("buy_access:") else "main"
+    await apply_buy_access_screen(query, bot, back_to=back_to or "main")
+
+
+@router.callback_query(F.data.startswith("buy_access_back:"))
+async def on_buy_access_back(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    dest = (query.data or "").split(":", 1)[1]
+    if dest == "welcome":
+        await show_welcome_on_message(query, bot)
+    elif dest == "profile":
+        if query.from_user is not None:
+            await ensure_user(query.from_user)
+        await apply_profile_screen(query, bot)
+    else:
+        await apply_full_main_menu_to_message(query, bot)
+
+
+@router.callback_query(F.data == "buy_pay_rub")
+async def on_buy_pay_rub(query: CallbackQuery) -> None:
+    await safe_answer(query, "Оплата рублями — в разработке.", show_alert=True)
+
+
+@router.callback_query(F.data == "buy_pay_crypto")
+async def on_buy_pay_crypto(query: CallbackQuery) -> None:
+    await safe_answer(query, "Оплата криптовалютой — в разработке.", show_alert=True)
+
+
+@router.callback_query(F.data == "buy_pay_bonus")
+async def on_buy_pay_bonus(query: CallbackQuery) -> None:
+    await safe_answer(query, "Оплата с бонусного баланса — в разработке.", show_alert=True)
 
 
 @router.callback_query(F.data == "profile")
