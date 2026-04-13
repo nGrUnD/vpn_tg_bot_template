@@ -459,11 +459,7 @@ async def on_buy_rub_verify(query: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("buy_rub_pay_stub:"))
 async def on_buy_rub_pay_stub(query: CallbackQuery) -> None:
-    await safe_answer(
-        query,
-        "Ссылка на оплату: задайте PAYMENT_RUB_CHECKOUT_URL в .env или подключите WATA.",
-        show_alert=True,
-    )
+    await safe_answer(query, "В разработке.", show_alert=True)
 
 
 @router.callback_query(F.data == "profile")
