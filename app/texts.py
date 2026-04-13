@@ -58,12 +58,53 @@ MAIN_MENU_CAPTION = (
     "📌 Главное меню: Выберите нужное вам действие⬇️"
 )
 
+BUY_LEGAL_PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-04-13-22"
+BUY_LEGAL_TERMS_URL = "https://telegra.ph/POLZOVATELSKOE-SOGLASHENIE-04-13-25"
+
+
+def buy_legal_links_block() -> str:
+    """Ссылки на политику и соглашение (как на экране «Купить доступ»)."""
+    p = html.escape(BUY_LEGAL_PRIVACY_URL, quote=True)
+    t = html.escape(BUY_LEGAL_TERMS_URL, quote=True)
+    return (
+        f'<a href="{p}">Политика конфиденциальности</a>\n'
+        f'<a href="{t}">ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ</a>'
+    )
+
+
 BUY_ACCESS_CAPTION = (
     "👑<b>Полный доступ</b>\n\n"
-    '<a href="https://telegra.ph/Politika-konfidencialnosti-04-13-22">Политика конфиденциальности</a>\n'
-    '<a href="https://telegra.ph/POLZOVATELSKOE-SOGLASHENIE-04-13-25">ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ</a>\n\n'
+    f"{buy_legal_links_block()}\n\n"
     "Выберите удобный вам способ оплаты⬇️:"
 )
+
+BUY_RUB_TARIFFS_CAPTION = (
+    "👑 <b>Полный доступ</b>\n\n"
+    "Выберите тариф⬇️:"
+)
+
+BUY_PROMO_CAPTION = (
+    "👑 <b>Полный доступ</b>\n\n"
+    "Введите промокод сообщением или нажмите «Пропустить»."
+)
+
+
+def rub_tariff_amount_rub(months: int) -> int:
+    """Цена тарифа в рублях (экран тарифов)."""
+    return {1: 299, 3: 779, 6: 1349, 12: 2499}.get(int(months), 299)
+
+
+def buy_rub_payment_caption(amount_rub: int) -> str:
+    n = int(amount_rub)
+    legal = buy_legal_links_block()
+    return (
+        "<b>Оплата рублями</b>\n\n"
+        f"Сумма к оплате: <b>{n}</b> ₽\n\n"
+        "1. Нажмите кнопку «Оплатить» и завершите платеж на странице.\n"
+        "2. Вернитесь в бота и нажмите «Проверить оплату».\n\n"
+        f"{legal}"
+    )
+
 
 NOT_SUBSCRIBED_ALERT = (
     "Сначала подпишитесь на канал, затем снова нажмите «Проверить»."

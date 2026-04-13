@@ -139,6 +139,9 @@ class Settings(BaseSettings):
     iphone_instruction_url: str | None = Field(default=None, validation_alias="IPHONE_INSTRUCTION_URL")
     android_instruction_url: str | None = Field(default=None, validation_alias="ANDROID_INSTRUCTION_URL")
 
+    # Ссылка на страницу оплаты WATA (если пусто — кнопка «Оплатить» ведёт в заглушку до интеграции)
+    payment_rub_checkout_url: str | None = Field(default=None, validation_alias="PAYMENT_RUB_CHECKOUT_URL")
+
     @field_validator("database_ssl_require", mode="before")
     @classmethod
     def coerce_database_ssl_require(cls, v: object) -> bool:
@@ -162,6 +165,7 @@ class Settings(BaseSettings):
         "connect_page_android_url",
         "iphone_instruction_url",
         "android_instruction_url",
+        "payment_rub_checkout_url",
         mode="before",
     )
     @classmethod

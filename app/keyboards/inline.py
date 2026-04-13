@@ -185,25 +185,119 @@ def buy_access_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text="Рубли 💳",
-                    callback_data="buy_pay_rub",
+                    callback_data=f"buy_pay_rub:{back_to}",
                 ),
             ],
             [
                 InlineKeyboardButton(
                     text="Криптовалюта🌑",
-                    callback_data="buy_pay_crypto",
+                    callback_data=f"buy_pay_crypto:{back_to}",
                 ),
             ],
             [
                 InlineKeyboardButton(
                     text="🎁 Оплатить с бонусного баланса",
-                    callback_data="buy_pay_bonus",
+                    callback_data=f"buy_pay_bonus:{back_to}",
                 ),
             ],
             [
                 InlineKeyboardButton(
                     text="⬅️ Назад",
                     callback_data=f"buy_access_back:{back_to}",
+                ),
+            ],
+        ],
+    )
+
+
+def buy_rub_tariffs_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="1 мес. - 299 ₽ (-10%)",
+                    callback_data=f"buy_tariff:1:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="3 мес. - 779 ₽ (-15%)",
+                    callback_data=f"buy_tariff:3:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="6 мес. - 1349 ₽ (-20%)",
+                    callback_data=f"buy_tariff:6:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="1 год. - 2499 ₽ (-25%)",
+                    callback_data=f"buy_tariff:12:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"buy_access:{back_to}",
+                ),
+            ],
+        ],
+    )
+
+
+def buy_promo_keyboard(*, months: int, back_to: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⏭️ Пропустить",
+                    callback_data=f"buy_promo_skip:{months}:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"buy_promo_back:{back_to}",
+                ),
+            ],
+        ],
+    )
+
+
+def buy_rub_payment_keyboard(*, months: int, back_to: str) -> InlineKeyboardMarkup:
+    pay_url = (settings.payment_rub_checkout_url or "").strip()
+    if pay_url:
+        pay_btn: list[InlineKeyboardButton] = [
+            InlineKeyboardButton(text="💳 Оплатить", url=pay_url),
+        ]
+    else:
+        pay_btn = [
+            InlineKeyboardButton(
+                text="💳 Оплатить",
+                callback_data=f"buy_rub_pay_stub:{months}:{back_to}",
+            ),
+        ]
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            pay_btn,
+            [
+                InlineKeyboardButton(
+                    text="🔄 Проверить оплату",
+                    callback_data=f"buy_rub_verify:{months}:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"buy_promo_open:{months}:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📌 Главное меню",
+                    callback_data="main_menu",
                 ),
             ],
         ],

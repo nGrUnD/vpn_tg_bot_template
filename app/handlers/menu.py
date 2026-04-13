@@ -27,7 +27,12 @@ from app.services.connect_windows_mac import apply_windows_mac_guide_screen
 from app.services.trial_connections import apply_trial_connections_screen
 from app.services.instructions_screen import apply_instructions_screen
 from app.services.vpn_troubleshoot_screen import run_vpn_troubleshoot_reissue
-from app.services.buy_access_screen import apply_buy_access_screen
+from app.services.buy_access_screen import (
+    apply_buy_access_screen,
+    apply_buy_promo_screen,
+    apply_buy_rub_payment_screen,
+    apply_buy_rub_tariffs_screen,
+)
 from app.services.users import ensure_user, get_trial_subscription_url, trial_still_active
 from app.services.welcome import show_welcome_on_message
 
@@ -370,19 +375,95 @@ async def on_buy_access_back(query: CallbackQuery, bot: Bot) -> None:
         await apply_full_main_menu_to_message(query, bot)
 
 
-@router.callback_query(F.data == "buy_pay_rub")
-async def on_buy_pay_rub(query: CallbackQuery) -> None:
-    await safe_answer(query, "Оплата рублями — в разработке.", show_alert=True)
+@router.callback_query(
+    lambda q: (q.data or "") == "buy_pay_rub" or (q.data or "").startswith("buy_pay_rub:")
+)
+async def on_buy_pay_rub(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    raw = query.data or ""
+    back_to = raw.split(":", 1)[1] if raw.startswith("buy_pay_rub:") else "main"
+    await apply_buy_rub_tariffs_screen(query, bot, back_to=back_to or "main")
 
 
-@router.callback_query(F.data == "buy_pay_crypto")
+@router.callback_query(
+    lambda q: (q.data or "") == "buy_pay_crypto" or (q.data or "").startswith("buy_pay_crypto:")
+)
 async def on_buy_pay_crypto(query: CallbackQuery) -> None:
     await safe_answer(query, "Оплата криптовалютой — в разработке.", show_alert=True)
 
 
-@router.callback_query(F.data == "buy_pay_bonus")
+@router.callback_query(
+    lambda q: (q.data or "") == "buy_pay_bonus" or (q.data or "").startswith("buy_pay_bonus:")
+)
 async def on_buy_pay_bonus(query: CallbackQuery) -> None:
     await safe_answer(query, "Оплата с бонусного баланса — в разработке.", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("buy_tariff:"))
+async def on_buy_tariff(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    raw = (query.data or "").strip()
+    parts = raw.split(":")
+    if len(parts) < 3 or parts[0] != "buy_tariff":
+        return
+    try:
+        months = int(parts[1])
+    except ValueError:
+        return
+    back_to = parts[2] or "main"
+    await apply_buy_promo_screen(query, bot, months=months, back_to=back_to)
+
+
+@router.callback_query(F.data.startswith("buy_promo_back:"))
+async def on_buy_promo_back(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    back_to = (query.data or "").split(":", 1)[1] or "main"
+    await apply_buy_rub_tariffs_screen(query, bot, back_to=back_to)
+
+
+@router.callback_query(F.data.startswith("buy_promo_skip:"))
+async def on_buy_promo_skip(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    raw = (query.data or "").strip()
+    parts = raw.split(":")
+    if len(parts) < 3 or parts[0] != "buy_promo_skip":
+        return
+    try:
+        months = int(parts[1])
+    except ValueError:
+        return
+    back_to = parts[2] or "main"
+    await apply_buy_rub_payment_screen(query, bot, months=months, back_to=back_to)
+
+
+@router.callback_query(F.data.startswith("buy_promo_open:"))
+async def on_buy_promo_open(query: CallbackQuery, bot: Bot) -> None:
+    """С экрана оплаты — назад к промокоду."""
+    await safe_answer(query)
+    raw = (query.data or "").strip()
+    parts = raw.split(":")
+    if len(parts) < 3 or parts[0] != "buy_promo_open":
+        return
+    try:
+        months = int(parts[1])
+    except ValueError:
+        return
+    back_to = parts[2] or "main"
+    await apply_buy_promo_screen(query, bot, months=months, back_to=back_to)
+
+
+@router.callback_query(F.data.startswith("buy_rub_verify:"))
+async def on_buy_rub_verify(query: CallbackQuery) -> None:
+    await safe_answer(query, "Проверка оплаты — в разработке.", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("buy_rub_pay_stub:"))
+async def on_buy_rub_pay_stub(query: CallbackQuery) -> None:
+    await safe_answer(
+        query,
+        "Ссылка на оплату: задайте PAYMENT_RUB_CHECKOUT_URL в .env или подключите WATA.",
+        show_alert=True,
+    )
 
 
 @router.callback_query(F.data == "profile")
