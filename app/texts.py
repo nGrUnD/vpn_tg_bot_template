@@ -59,8 +59,10 @@ MAIN_MENU_CAPTION = (
 )
 
 BUY_ACCESS_CAPTION = (
-    "👑 <b>Полный доступ</b>\n\n"
-    "Выберите удобный вам способ оплаты⬇️"
+    "👑<b>Полный доступ</b>\n\n"
+    '<a href="https://telegra.ph/Politika-konfidencialnosti-04-13-22">Политика конфиденциальности</a>\n'
+    '<a href="https://telegra.ph/POLZOVATELSKOE-SOGLASHENIE-04-13-25">ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ</a>\n\n'
+    "Выберите удобный вам способ оплаты⬇️:"
 )
 
 NOT_SUBSCRIBED_ALERT = (
