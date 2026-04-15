@@ -266,11 +266,18 @@ def buy_promo_keyboard(*, months: int, back_to: str) -> InlineKeyboardMarkup:
     )
 
 
-def buy_rub_payment_keyboard(*, months: int, back_to: str) -> InlineKeyboardMarkup:
-    pay_url = (settings.payment_rub_checkout_url or "").strip()
-    if pay_url:
+def buy_rub_payment_keyboard(
+    *,
+    months: int,
+    back_to: str,
+    pay_url: str | None = None,
+) -> InlineKeyboardMarkup:
+    explicit = (pay_url or "").strip()
+    static = (settings.payment_rub_checkout_url or "").strip()
+    url = explicit or static
+    if url:
         pay_btn: list[InlineKeyboardButton] = [
-            InlineKeyboardButton(text="💳 Оплатить", url=pay_url),
+            InlineKeyboardButton(text="💳 Оплатить", url=url),
         ]
     else:
         pay_btn = [

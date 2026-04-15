@@ -30,13 +30,48 @@ from app.services.vpn_troubleshoot_screen import run_vpn_troubleshoot_reissue
 from app.services.buy_access_screen import (
     apply_buy_access_screen,
     apply_buy_promo_screen,
-    apply_buy_rub_payment_screen,
     apply_buy_rub_tariffs_screen,
 )
-from app.services.users import ensure_user, get_trial_subscription_url, trial_still_active
+from app.services.paid_access import ensure_paid_access_for_order
+from app.services.rub_payment_flow import open_buy_rub_payment_after_promo
+from app.services import rub_orders
+from app.services.users import (
+    ensure_user,
+    get_active_access,
+    get_active_subscription_url,
+)
 from app.services.welcome import show_welcome_on_message
 
 router = Router(name="menu")
+
+
+async def _show_active_connections(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    telegram_id: int,
+    back_to: str,
+) -> None:
+    access = await get_active_access(telegram_id)
+    if access is None:
+        await apply_trial_connections_screen(
+            query,
+            bot,
+            back_to=back_to,
+            caption_html=texts.connections_no_access_caption(),
+        )
+        return
+    description = f"Доступ активен до {texts.format_ru_date(access.expires_at)}."
+    await apply_trial_connections_screen(
+        query,
+        bot,
+        back_to=back_to,
+        caption_html=texts.active_connections_caption(
+            access_label=access.access_label,
+            description=description,
+            subscription_url=access.subscription_url,
+        ),
+    )
 
 
 @router.callback_query(F.data == "main_menu")
@@ -81,10 +116,7 @@ async def on_conn_windows(query: CallbackQuery, bot: Bot) -> None:
     if query.from_user is None:
         return
     await ensure_user(query.from_user)
-    tid = query.from_user.id
-    sub: str | None = None
-    if await trial_still_active(tid):
-        sub = await get_trial_subscription_url(tid)
+    sub = await get_active_subscription_url(query.from_user.id)
     await apply_windows_mac_guide_screen(query, bot, back_to=back_to, subscription_url=sub)
 
 
@@ -111,22 +143,12 @@ async def on_trial_devices(query: CallbackQuery, bot: Bot) -> None:
     if query.from_user is None:
         return
     await ensure_user(query.from_user)
-    tid = query.from_user.id
-    if await trial_still_active(tid):
-        sub = await get_trial_subscription_url(tid)
-        await apply_trial_connections_screen(
-            query,
-            bot,
-            back_to=back_to,
-            subscription_url=sub,
-        )
-    else:
-        await apply_trial_connections_screen(
-            query,
-            bot,
-            back_to=back_to,
-            caption_html=texts.connections_no_access_caption(),
-        )
+    await _show_active_connections(
+        query,
+        bot,
+        telegram_id=query.from_user.id,
+        back_to=back_to,
+    )
 
 
 @router.callback_query(
@@ -139,10 +161,7 @@ async def on_conn_iphone(query: CallbackQuery, bot: Bot) -> None:
     if query.from_user is None:
         return
     await ensure_user(query.from_user)
-    tid = query.from_user.id
-    sub: str | None = None
-    if await trial_still_active(tid):
-        sub = await get_trial_subscription_url(tid)
+    sub = await get_active_subscription_url(query.from_user.id)
     await apply_iphone_guide_screen(query, bot, back_to=back_to, subscription_url=sub)
 
 
@@ -250,10 +269,7 @@ async def on_conn_android(query: CallbackQuery, bot: Bot) -> None:
     if query.from_user is None:
         return
     await ensure_user(query.from_user)
-    tid = query.from_user.id
-    sub: str | None = None
-    if await trial_still_active(tid):
-        sub = await get_trial_subscription_url(tid)
+    sub = await get_active_subscription_url(query.from_user.id)
     await apply_android_trial_guide_screen(
         query,
         bot,
@@ -423,17 +439,24 @@ async def on_buy_promo_back(query: CallbackQuery, bot: Bot) -> None:
 
 @router.callback_query(F.data.startswith("buy_promo_skip:"))
 async def on_buy_promo_skip(query: CallbackQuery, bot: Bot) -> None:
-    await safe_answer(query)
     raw = (query.data or "").strip()
     parts = raw.split(":")
     if len(parts) < 3 or parts[0] != "buy_promo_skip":
+        await safe_answer(query)
         return
     try:
         months = int(parts[1])
     except ValueError:
+        await safe_answer(query)
         return
     back_to = parts[2] or "main"
-    await apply_buy_rub_payment_screen(query, bot, months=months, back_to=back_to)
+    alert = await open_buy_rub_payment_after_promo(
+        query, bot, months=months, back_to=back_to
+    )
+    if alert:
+        await safe_answer(query, alert, show_alert=True)
+    else:
+        await safe_answer(query)
 
 
 @router.callback_query(F.data.startswith("buy_promo_open:"))
@@ -453,8 +476,71 @@ async def on_buy_promo_open(query: CallbackQuery, bot: Bot) -> None:
 
 
 @router.callback_query(F.data.startswith("buy_rub_verify:"))
-async def on_buy_rub_verify(query: CallbackQuery) -> None:
-    await safe_answer(query, "Проверка оплаты — в разработке.", show_alert=True)
+async def on_buy_rub_verify(
+    query: CallbackQuery,
+    bot: Bot,
+    threexui_runtime: ThreexuiRuntime,
+) -> None:
+    if query.from_user is None:
+        await safe_answer(query)
+        return
+    raw = (query.data or "").strip()
+    parts = raw.split(":")
+    if len(parts) < 3 or parts[0] != "buy_rub_verify":
+        await safe_answer(query)
+        return
+    try:
+        months = int(parts[1])
+    except ValueError:
+        await safe_answer(query)
+        return
+    row = await rub_orders.get_latest_order_for_user_tariff(
+        telegram_id=query.from_user.id,
+        months=months,
+    )
+    if row is None:
+        await safe_answer(query, texts.RUB_VERIFY_NONE, show_alert=True)
+        return
+    st = str(row["status"])
+    if st == "paid":
+        prov = str(row["provisioning_status"] or "").strip()
+        if row["provisioned_at"] is not None:
+            await safe_answer(query, texts.RUB_VERIFY_PAID, show_alert=False)
+            await _show_active_connections(
+                query,
+                bot=bot,
+                telegram_id=query.from_user.id,
+                back_to="profile",
+            )
+            return
+        if prov == "provisioning":
+            await safe_answer(query, texts.RUB_VERIFY_PROVISIONING, show_alert=True)
+            return
+        result = await ensure_paid_access_for_order(
+            row["order_id"],
+            runtime=threexui_runtime,
+        )
+        if result.status == "provisioned":
+            await safe_answer(query, texts.RUB_VERIFY_PAID, show_alert=False)
+            await _show_active_connections(
+                query,
+                bot=bot,
+                telegram_id=query.from_user.id,
+                back_to="profile",
+            )
+            return
+        if result.status == "in_progress":
+            await safe_answer(query, texts.RUB_VERIFY_PROVISIONING, show_alert=True)
+            return
+        await safe_answer(
+            query,
+            result.error_text or texts.WATA_PAYMENT_PROVISION_FAILED,
+            show_alert=True,
+        )
+    elif st == "declined":
+        await safe_answer(query, texts.RUB_VERIFY_DECLINED, show_alert=True)
+    else:
+        await safe_answer(query, texts.RUB_VERIFY_PENDING, show_alert=True)
 
 
 @router.callback_query(F.data.startswith("buy_rub_pay_stub:"))
@@ -476,22 +562,12 @@ async def on_profile_connections(query: CallbackQuery, bot: Bot) -> None:
     if query.from_user is None:
         return
     await ensure_user(query.from_user)
-    tid = query.from_user.id
-    if await trial_still_active(tid):
-        sub = await get_trial_subscription_url(tid)
-        await apply_trial_connections_screen(
-            query,
-            bot,
-            back_to="profile",
-            subscription_url=sub,
-        )
-    else:
-        await apply_trial_connections_screen(
-            query,
-            bot,
-            back_to="profile",
-            caption_html=texts.connections_no_access_caption(),
-        )
+    await _show_active_connections(
+        query,
+        bot,
+        telegram_id=query.from_user.id,
+        back_to="profile",
+    )
 
 
 @router.callback_query(F.data == "profile_back_main")
@@ -521,10 +597,7 @@ async def on_instructions(query: CallbackQuery, bot: Bot) -> None:
     if query.from_user is None:
         return
     await ensure_user(query.from_user)
-    tid = query.from_user.id
-    sub: str | None = None
-    if await trial_still_active(tid):
-        sub = await get_trial_subscription_url(tid)
+    sub = await get_active_subscription_url(query.from_user.id)
     await apply_instructions_screen(
         query,
         bot,

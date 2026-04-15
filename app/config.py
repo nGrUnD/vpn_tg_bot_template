@@ -139,8 +139,24 @@ class Settings(BaseSettings):
     iphone_instruction_url: str | None = Field(default=None, validation_alias="IPHONE_INSTRUCTION_URL")
     android_instruction_url: str | None = Field(default=None, validation_alias="ANDROID_INSTRUCTION_URL")
 
-    # Ссылка на страницу оплаты WATA (если пусто — кнопка «Оплатить» ведёт в заглушку до интеграции)
+    # Статическая ссылка на оплату (если нет WATA API — как раньше; при настроенном WATA токене не используется)
     payment_rub_checkout_url: str | None = Field(default=None, validation_alias="PAYMENT_RUB_CHECKOUT_URL")
+
+    # WATA H2H: https://wata.pro/api — платёжные ссылки + webhook
+    wata_access_token: str | None = Field(default=None, validation_alias="WATA_ACCESS_TOKEN")
+    wata_api_base: str = Field(
+        default="https://api.wata.pro/api/h2h",
+        validation_alias="WATA_API_BASE",
+    )
+    wata_webhook_path: str = Field(default="/webhooks/wata", validation_alias="WATA_WEBHOOK_PATH")
+    wata_webhook_verify_signature: bool = Field(default=True, validation_alias="WATA_WEBHOOK_VERIFY_SIGNATURE")
+    http_webhook_host: str = Field(default="0.0.0.0", validation_alias="HTTP_WEBHOOK_HOST")
+    http_webhook_port: int = Field(default=0, ge=0, le=65535, validation_alias="HTTP_WEBHOOK_PORT")
+
+    @field_validator("wata_webhook_verify_signature", mode="before")
+    @classmethod
+    def coerce_wata_webhook_verify_signature(cls, v: object) -> bool:
+        return _parse_bool(v, default=True)
 
     @field_validator("database_ssl_require", mode="before")
     @classmethod
@@ -166,6 +182,7 @@ class Settings(BaseSettings):
         "iphone_instruction_url",
         "android_instruction_url",
         "payment_rub_checkout_url",
+        "wata_access_token",
         mode="before",
     )
     @classmethod
@@ -174,6 +191,24 @@ class Settings(BaseSettings):
             return None
         s = str(v).strip()
         return s if s else None
+
+    @field_validator("wata_api_base", mode="before")
+    @classmethod
+    def normalize_wata_api_base(cls, v: object) -> str:
+        s = (str(v).strip() if v is not None else "").strip().rstrip("/")
+        return s or "https://api.wata.pro/api/h2h"
+
+    @field_validator("wata_webhook_path", mode="before")
+    @classmethod
+    def normalize_webhook_path(cls, v: object) -> str:
+        s = (str(v) if v is not None else "").strip() or "/webhooks/wata"
+        return s if s.startswith("/") else f"/{s}"
+
+    def wata_api_configured(self) -> bool:
+        return bool((self.wata_access_token or "").strip())
+
+    def wata_webhook_server_enabled(self) -> bool:
+        return self.wata_api_configured() and int(self.http_webhook_port) > 0
 
     def threexui_backend_configs(self) -> dict[str, ThreeXUIConfig]:
         raw_json = (self.threexui_backends_json or "").strip()

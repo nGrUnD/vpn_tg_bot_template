@@ -60,15 +60,14 @@ def threexui_client_for_backend(
     return None
 
 
-async def pick_backend_for_new_trial(
+async def pick_backend_for_new_access(
     *,
     registry: dict[str, ThreeXUIClient],
     configs: dict[str, ThreeXUIConfig],
     default_key: str,
 ) -> ThreeXUIConfig:
     """
-    Равномерная загрузка: минимум (активных_trial / weight), как pick_backend_for_new_subscription
-    в vpn_template (там считаются подписки; здесь — активные trial в users).
+    Равномерная загрузка по всем активным доступам в users: paid + trial.
     """
     enabled = [
         cfg
@@ -83,11 +82,18 @@ async def pick_backend_for_new_trial(
         rows = await conn.fetch(
             """
             SELECT
-                COALESCE(NULLIF(TRIM(trial_backend_key), ''), $1) AS bk,
+                bk,
                 COUNT(*)::int AS total
-            FROM users
-            WHERE trial_expires_at IS NOT NULL AND trial_expires_at > NOW()
-            GROUP BY COALESCE(NULLIF(TRIM(trial_backend_key), ''), $1)
+            FROM (
+                SELECT COALESCE(NULLIF(TRIM(trial_backend_key), ''), $1) AS bk
+                FROM users
+                WHERE trial_expires_at IS NOT NULL AND trial_expires_at > NOW()
+                UNION ALL
+                SELECT COALESCE(NULLIF(TRIM(paid_backend_key), ''), $1) AS bk
+                FROM users
+                WHERE paid_expires_at IS NOT NULL AND paid_expires_at > NOW()
+            ) access_rows
+            GROUP BY bk
             """,
             default_key,
         )
@@ -101,9 +107,22 @@ async def pick_backend_for_new_trial(
 
     chosen = min(enabled, key=sort_key)
     logger.info(
-        "3x-ui: новый trial на панель key=%s (weighted_load=%.3f, active_trials=%s)",
+        "3x-ui: новый доступ на панель key=%s (weighted_load=%.3f, active_access=%s)",
         chosen.key,
         counts.get(chosen.key, 0) / max(chosen.weight, 1),
         counts.get(chosen.key, 0),
     )
     return chosen
+
+
+async def pick_backend_for_new_trial(
+    *,
+    registry: dict[str, ThreeXUIClient],
+    configs: dict[str, ThreeXUIConfig],
+    default_key: str,
+) -> ThreeXUIConfig:
+    return await pick_backend_for_new_access(
+        registry=registry,
+        configs=configs,
+        default_key=default_key,
+    )

@@ -185,6 +185,7 @@ async def apply_buy_rub_payment_screen(
     *,
     months: int,
     back_to: str,
+    pay_url: str | None = None,
 ) -> None:
     """Экран оплаты рублями (после промокода / «Пропустить»)."""
     msg = query.message
@@ -193,7 +194,7 @@ async def apply_buy_rub_payment_screen(
 
     amount = texts.rub_tariff_amount_rub(months)
     caption = texts.buy_rub_payment_caption(amount)
-    kb = buy_rub_payment_keyboard(months=months, back_to=back_to)
+    kb = buy_rub_payment_keyboard(months=months, back_to=back_to, pay_url=pay_url)
     path = (
         BUY_RUB_PAYMENT_IMAGE_PATH
         if BUY_RUB_PAYMENT_IMAGE_PATH.is_file()

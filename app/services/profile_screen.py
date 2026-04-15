@@ -11,7 +11,7 @@ from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto
 from app import texts
 from app.keyboards.inline import profile_keyboard
 from app.paths import PROFILE_IMAGE_PATH
-from app.services.users import fetch_profile_row, trial_still_active
+from app.services.users import fetch_profile_row, get_active_access
 
 logger = logging.getLogger(__name__)
 
@@ -21,23 +21,18 @@ async def build_profile_caption_html(telegram_id: int) -> str:
     bonus_days = int(row["bonus_days"] or 0) if row else 0
     bonus_rub = int(row["bonus_balance_rub"] or 0) if row else 0
 
-    trial_on = await trial_still_active(telegram_id)
-    exp: datetime | None = None
-    if row and row["trial_expires_at"] is not None:
-        exp = row["trial_expires_at"]
-        if exp.tzinfo is None:
-            exp = exp.replace(tzinfo=timezone.utc)
-
+    access = await get_active_access(telegram_id)
+    exp: datetime | None = access.expires_at if access else None
     until_text = "—"
     remaining_text = "—"
     access_label = "Нет доступа"
-    if trial_on and exp is not None:
-        access_label = "Пробный период"
+    if access is not None and exp is not None:
+        access_label = access.access_label
         until_text = texts.format_ru_date(exp)
         remaining_text = texts.remaining_until_phrase(exp, now=datetime.now(timezone.utc))
 
     return texts.profile_caption(
-        vpn_access_active=trial_on,
+        vpn_access_active=access is not None,
         access_label=access_label,
         until_text=until_text,
         remaining_text=remaining_text,

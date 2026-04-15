@@ -21,6 +21,7 @@ from app.services.users import (
     _utcnow,
     clear_trial_in_db,
     ensure_user,
+    get_active_access,
     get_trial_panel_sync_fields,
     get_trial_subscription_url,
     save_trial_access,
@@ -44,6 +45,20 @@ async def run_trial_activation_flow(
 
     await ensure_user(query.from_user)
     tid = query.from_user.id
+
+    active_access = await get_active_access(tid)
+    if active_access is not None and active_access.kind == "paid":
+        await apply_trial_connections_screen(
+            query,
+            bot,
+            back_to=back_to,
+            caption_html=texts.active_connections_caption(
+                access_label=active_access.access_label,
+                description=f"Доступ активен до {texts.format_ru_date(active_access.expires_at)}.",
+                subscription_url=active_access.subscription_url,
+            ),
+        )
+        return
 
     if await trial_still_active(tid):
         skip_to_create = False

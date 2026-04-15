@@ -12,6 +12,8 @@ from aiogram.enums import ParseMode
 from app.config import settings
 from app.db import close_db, init_db
 from app.handlers import root_router
+from app.services.wata_client import aclose_wata_http
+from app.wata_http import run_wata_webhook_server
 from app.middlewares import ThreexuiMiddleware
 from app.services.threexui_backends import (
     ThreexuiRuntime,
@@ -97,13 +99,30 @@ async def _run() -> None:
     dp.update.middleware(ThreexuiMiddleware(threexui_runtime))
     dp.include_router(root_router)
 
+    if settings.wata_api_configured() and not settings.wata_webhook_server_enabled():
+        logger.warning(
+            "WATA: задан WATA_ACCESS_TOKEN, но HTTP_WEBHOOK_PORT=0 — HTTP-сервер webhook не запускается; "
+            "статусы оплат на этот процесс не придут (см. .env.example)"
+        )
+
+    http_task: asyncio.Task[None] | None = None
+    if settings.wata_webhook_server_enabled():
+        http_task = asyncio.create_task(run_wata_webhook_server(bot, threexui_runtime))
+
     await bot.delete_webhook(drop_pending_updates=False)
     logger.info("Polling, pid=%s (должен быть один процесс с этим токеном на всех машинах)", os.getpid())
 
     try:
         await dp.start_polling(bot)
     finally:
+        if http_task is not None:
+            http_task.cancel()
+            try:
+                await http_task
+            except asyncio.CancelledError:
+                pass
         await close_db()
+        await aclose_wata_http()
         await close_threexui_registry(registry)
         await bot.session.close()
 
