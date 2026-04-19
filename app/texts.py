@@ -355,8 +355,8 @@ def iphone_guide_caption(subscription_url: str | None) -> str:
     guide = html.escape("https://telegra.ph/Instrukciya-dlya-Iphone-04-19-2", quote=True)
     body = (
         "🍏 <b>Подключение для iPhone</b>\n\n"
-        "Подписка активирована\n"
-        "✅ Откройте ссылку на страницу подключения в боте.\n\n"
+        "Подписка активирована ✅\n\n"
+        "Откройте ссылку на страницу подключения в боте.\n\n"
         "Установите одно из приложений, если оно ещё не установлено:\n"
         f'— hApp — <a href="{happ}">скачать</a>\n'
         f'— Hiddify — <a href="{hid}">скачать</a>\n'
