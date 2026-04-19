@@ -352,16 +352,20 @@ def iphone_guide_caption(subscription_url: str | None) -> str:
     happ = html.escape(IPHONE_HAPP_APP_STORE_URL, quote=True)
     hid = html.escape(IPHONE_HIDDIFY_APP_STORE_URL, quote=True)
     v2 = html.escape(IPHONE_V2RAYTUN_APP_STORE_URL, quote=True)
+    guide = html.escape("https://telegra.ph/Instrukciya-dlya-Iphone-04-19-2", quote=True)
     body = (
         "🍏 <b>Подключение для iPhone</b>\n\n"
-        "Подписка активирована ✅\n\n"
-        "Откройте ссылку на страницу подключения в боте.\n\n"
+        "Подписка активирована\n"
+        "✅ Откройте ссылку на страницу подключения в боте.\n\n"
         "Установите одно из приложений, если оно ещё не установлено:\n"
         f'— hApp — <a href="{happ}">скачать</a>\n'
         f'— Hiddify — <a href="{hid}">скачать</a>\n'
         f'— v2RayTun — <a href="{v2}">скачать</a>\n\n'
-        "На странице подключения нажмите кнопку открытия в выбранном приложении "
-        "для автоимпорта.\n\n"
+        f'📖 <a href="{guide}">Инструкция для Iphone – Telegraph</a>\n\n'
+        "На странице подключения по ссылке ниже нажмите кнопку открытия "
+        "(кнопка iOS в самом низу) и в установленном у вас приложении "
+        "(hApp, Hiddify, v2RayTun) просто добавьте из буфера.\n"
+        "Получите 4 ключа.\n\n"
     )
     ios_link = subscription_url_for_ios(subscription_url)
     if ios_link:
