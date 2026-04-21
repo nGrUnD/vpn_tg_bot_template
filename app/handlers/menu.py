@@ -3,6 +3,7 @@ from aiogram.types import CallbackQuery, LabeledPrice, Message, PreCheckoutQuery
 
 from app import texts
 from app.callback_safe import safe_answer
+from app.config import settings
 from app.services.main_menu import apply_full_main_menu_to_message
 from app.services.profile_screen import apply_profile_screen
 from app.services.support_screen import apply_support_screen
@@ -29,11 +30,13 @@ from app.services.instructions_screen import apply_instructions_screen
 from app.services.vpn_troubleshoot_screen import run_vpn_troubleshoot_reissue
 from app.services.buy_access_screen import (
     apply_buy_access_screen,
+    apply_buy_crypto_tariffs_screen,
     apply_buy_promo_screen,
     apply_buy_rub_tariffs_screen,
     apply_buy_stars_promo_screen,
     apply_buy_stars_tariffs_screen,
 )
+from app.services.crypto_payment_flow import open_crypto_payment_for_tariff
 from app.services.paid_access import ensure_paid_access_for_order
 from app.services.rub_payment_flow import open_buy_rub_payment_after_promo
 from app.services.stars_payment_flow import (
@@ -421,8 +424,36 @@ async def on_buy_pay_stars(query: CallbackQuery, bot: Bot) -> None:
 @router.callback_query(
     lambda q: (q.data or "") == "buy_pay_crypto" or (q.data or "").startswith("buy_pay_crypto:")
 )
-async def on_buy_pay_crypto(query: CallbackQuery) -> None:
-    await safe_answer(query, "Оплата криптовалютой — в разработке.", show_alert=True)
+async def on_buy_pay_crypto(query: CallbackQuery, bot: Bot) -> None:
+    raw = query.data or ""
+    back_to = raw.split(":", 1)[1] if raw.startswith("buy_pay_crypto:") else "main"
+    if not settings.cryptopay_api_configured():
+        await safe_answer(query, texts.CRYPTOPAY_NOT_CONFIGURED_ALERT, show_alert=True)
+        return
+    await safe_answer(query)
+    await apply_buy_crypto_tariffs_screen(query, bot, back_to=back_to or "main")
+
+
+@router.callback_query(F.data.startswith("buy_crypto_tariff:"))
+async def on_buy_crypto_tariff(query: CallbackQuery, bot: Bot) -> None:
+    raw = (query.data or "").strip()
+    parts = raw.split(":")
+    if len(parts) < 3 or parts[0] != "buy_crypto_tariff":
+        await safe_answer(query)
+        return
+    try:
+        months = int(parts[1])
+    except ValueError:
+        await safe_answer(query)
+        return
+    back_to = parts[2] or "main"
+    err = await open_crypto_payment_for_tariff(
+        query, bot, months=months, back_to=back_to
+    )
+    if err:
+        await safe_answer(query, err, show_alert=True)
+    else:
+        await safe_answer(query)
 
 
 @router.callback_query(

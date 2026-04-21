@@ -19,7 +19,7 @@ async def insert_pending_order(
     order_id: str,
     telegram_id: int,
     months: int,
-    amount_rub: int,
+    amount: Decimal,
     payment_method: str = "rub",
     currency: str = "RUB",
 ) -> None:
@@ -35,7 +35,7 @@ async def insert_pending_order(
             order_id,
             telegram_id,
             months,
-            Decimal(amount_rub),
+            amount,
             payment_method,
             currency,
         )

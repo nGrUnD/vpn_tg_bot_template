@@ -1,6 +1,8 @@
 import html
 from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
 
+from app.config import settings
 from app.ru_plural import days_form
 
 _RU_MONTHS = (
@@ -102,6 +104,58 @@ def rub_tariff_amount_rub(months: int) -> int:
 def stars_tariff_amount(months: int) -> int:
     """Цена тарифа в Telegram Stars."""
     return {1: 149, 3: 389, 6: 739, 12: 1349}.get(int(months), 149)
+
+
+def tariff_period_label(months: int) -> str:
+    m = int(months)
+    if m == 12:
+        return "1 год"
+    return {1: "1 мес", 3: "3 мес", 6: "6 мес"}.get(m, f"{m} мес.")
+
+
+def crypto_tariff_amount_usdt(months: int) -> Decimal:
+    """Цена в USDT: та же тарифная цена в ₽ (`rub_tariff_amount_rub`), делённая на курс из .env."""
+    rub = Decimal(rub_tariff_amount_rub(months))
+    per_usdt = settings.cryptopay_rub_per_usdt
+    if per_usdt <= 0:
+        per_usdt = Decimal("83")
+    q = Decimal("0.01")
+    return (rub / per_usdt).quantize(q, rounding=ROUND_HALF_UP)
+
+
+def format_crypto_usdt(amount: Decimal) -> str:
+    """Строка суммы для API Crypto Pay."""
+    return f"{amount:.2f}"
+
+
+def cryptopay_invoice_description(*, months: int, telegram_id: int) -> str:
+    return f"VPN {tariff_period_label(months)} для пользователя {telegram_id}"
+
+
+CRYPTOPAY_NOT_CONFIGURED_ALERT = "Оплата USDT не настроена. Укажите CRYPTOPAY_API_TOKEN в .env бота."
+
+CRYPTOPAY_CREATE_FAILED_ALERT = (
+    "Не удалось создать счёт в CryptoBot. Проверьте токен API и повторите попытку позже."
+)
+
+BUY_CRYPTO_TARIFFS_CAPTION = (
+    "💎 <b>Оплата CryptoBot</b>\n\n"
+    "Сумма в USDT считается из цены в рублях по курсу из настроек бота.\n"
+    "Выберите срок подписки⬇️"
+)
+
+
+def crypto_payment_screen_caption(*, months: int, amount_usdt: Decimal) -> str:
+    plan = tariff_period_label(months)
+    amt = format_crypto_usdt(amount_usdt)
+    rub = rub_tariff_amount_rub(months)
+    return (
+        "💎 <b>Оплата CryptoBot</b>\n\n"
+        f"<b>План:</b> {plan}\n"
+        f"<b>Эквивалент:</b> {rub} ₽ → <b>{amt} USDT</b>\n\n"
+        "Оплатите по ссылке. После оплаты подписка активируется автоматически.\n"
+        "Ссылка на подписку всегда доступна в «⭐️ Мои подключения» (профиль)."
+    )
 
 
 def buy_rub_payment_caption(amount_rub: int) -> str:

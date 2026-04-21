@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
@@ -10,6 +11,8 @@ from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto
 from app import texts
 from app.keyboards.inline import (
     buy_access_keyboard,
+    buy_crypto_payment_keyboard,
+    buy_crypto_tariffs_keyboard,
     buy_promo_keyboard,
     buy_rub_payment_keyboard,
     buy_rub_tariffs_keyboard,
@@ -167,6 +170,109 @@ async def apply_buy_stars_tariffs_screen(
             return
 
     logger.warning("Файл buy_stars_tariffs не найден: %s", path)
+    try:
+        await msg.edit_text(caption, parse_mode=ParseMode.HTML, reply_markup=kb)
+    except TelegramBadRequest:
+        await bot.send_message(
+            msg.chat.id,
+            caption,
+            parse_mode=ParseMode.HTML,
+            reply_markup=kb,
+        )
+
+
+async def apply_buy_crypto_tariffs_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    back_to: str,
+) -> None:
+    msg = query.message
+    if msg is None:
+        return
+
+    caption = texts.BUY_CRYPTO_TARIFFS_CAPTION
+    kb = buy_crypto_tariffs_keyboard(back_to=back_to)
+    path = BUY_RUB_TARIFFS_IMAGE_PATH if BUY_RUB_TARIFFS_IMAGE_PATH.is_file() else BUY_ACCESS_IMAGE_PATH
+
+    if path.is_file():
+        media = InputMediaPhoto(
+            media=FSInputFile(path),
+            caption=caption,
+            parse_mode=ParseMode.HTML,
+        )
+        try:
+            await msg.edit_media(media=media, reply_markup=kb)
+            return
+        except TelegramBadRequest as e:
+            logger.info("edit_media buy_crypto_tariffs не удался (%s), отправляю новое", e)
+            try:
+                await msg.delete()
+            except TelegramBadRequest:
+                pass
+            await bot.send_photo(
+                chat_id=msg.chat.id,
+                photo=FSInputFile(path),
+                caption=caption,
+                parse_mode=ParseMode.HTML,
+                reply_markup=kb,
+            )
+            return
+
+    logger.warning("Файл buy_crypto_tariffs не найден: %s", path)
+    try:
+        await msg.edit_text(caption, parse_mode=ParseMode.HTML, reply_markup=kb)
+    except TelegramBadRequest:
+        await bot.send_message(
+            msg.chat.id,
+            caption,
+            parse_mode=ParseMode.HTML,
+            reply_markup=kb,
+        )
+
+
+async def apply_buy_crypto_payment_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    months: int,
+    back_to: str,
+    amount_usdt: Decimal,
+    pay_url: str | None,
+) -> None:
+    msg = query.message
+    if msg is None:
+        return
+
+    caption = texts.crypto_payment_screen_caption(months=months, amount_usdt=amount_usdt)
+    kb = buy_crypto_payment_keyboard(pay_url=pay_url, back_to=back_to)
+    path = BUY_RUB_PAYMENT_IMAGE_PATH if BUY_RUB_PAYMENT_IMAGE_PATH.is_file() else BUY_ACCESS_IMAGE_PATH
+
+    if path.is_file():
+        media = InputMediaPhoto(
+            media=FSInputFile(path),
+            caption=caption,
+            parse_mode=ParseMode.HTML,
+        )
+        try:
+            await msg.edit_media(media=media, reply_markup=kb)
+            return
+        except TelegramBadRequest as e:
+            logger.info("edit_media buy_crypto_payment не удался (%s), отправляю новое", e)
+            try:
+                await msg.delete()
+            except TelegramBadRequest:
+                pass
+            await bot.send_photo(
+                chat_id=msg.chat.id,
+                photo=FSInputFile(path),
+                caption=caption,
+                parse_mode=ParseMode.HTML,
+                reply_markup=kb,
+            )
+            return
+
+    logger.warning("Файл buy_crypto_payment не найден: %s", path)
     try:
         await msg.edit_text(caption, parse_mode=ParseMode.HTML, reply_markup=kb)
     except TelegramBadRequest:

@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from app import texts
 from app.config import settings
 from app.ru_plural import trial_button_caption
 
@@ -292,6 +293,57 @@ def buy_stars_tariffs_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
             ],
         ],
     )
+
+
+def buy_crypto_tariffs_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    spec = (
+        (1, "1 мес."),
+        (3, "3 мес."),
+        (6, "6 мес."),
+        (12, "1 год"),
+    )
+    for months, label in spec:
+        amt = texts.format_crypto_usdt(texts.crypto_tariff_amount_usdt(months))
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"{label} - {amt} USDT",
+                    callback_data=f"buy_crypto_tariff:{months}:{back_to}",
+                ),
+            ],
+        )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=f"buy_access:{back_to}",
+            ),
+        ],
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def buy_crypto_payment_keyboard(*, pay_url: str | None, back_to: str) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    if pay_url:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="⬆️ Оплатить в CryptoBot ↗️",
+                    url=pay_url,
+                ),
+            ],
+        )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="↩️ Назад к витрине",
+                callback_data=f"buy_access:{back_to}",
+            ),
+        ],
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def buy_promo_keyboard(*, months: int, back_to: str) -> InlineKeyboardMarkup:

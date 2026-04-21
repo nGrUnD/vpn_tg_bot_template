@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from aiogram import Bot
 from aiogram.types import CallbackQuery
 
@@ -37,7 +39,7 @@ async def open_buy_stars_payment_screen(
         order_id=order_id,
         telegram_id=user.id,
         months=months,
-        amount_rub=amount,
+        amount=Decimal(amount),
         payment_method="stars",
         currency="XTR",
     )

@@ -7,6 +7,8 @@ from aiohttp import web
 from aiogram import Bot
 
 from app.config import settings
+from app.services.cryptopay_client import sync_cryptopay_webhook_from_env
+from app.services.cryptopay_webhook_dispatch import handle_cryptopay_webhook_request
 from app.services.threexui_backends import ThreexuiRuntime
 from app.services.wata_webhook_dispatch import handle_wata_webhook_request
 
@@ -27,12 +29,27 @@ async def _wata_webhook_route(request: web.Request) -> web.Response:
     return web.Response(status=status, text=body)
 
 
+async def _cryptopay_webhook_route(request: web.Request) -> web.Response:
+    bot: Bot = request.app["bot"]
+    runtime: ThreexuiRuntime = request.app["threexui_runtime"]
+    raw = await request.read()
+    status, body = await handle_cryptopay_webhook_request(
+        bot=bot,
+        threexui_runtime=runtime,
+        raw_body=raw,
+        request_headers=request.headers,
+    )
+    return web.Response(status=status, text=body)
+
+
 def build_wata_web_app(bot: Bot, threexui_runtime: ThreexuiRuntime) -> web.Application:
     app = web.Application()
     app["bot"] = bot
     app["threexui_runtime"] = threexui_runtime
-    path = settings.wata_webhook_path
-    app.router.add_post(path, _wata_webhook_route)
+    if settings.wata_api_configured():
+        app.router.add_post(settings.wata_webhook_path, _wata_webhook_route)
+    if settings.cryptopay_api_configured():
+        app.router.add_post(settings.cryptopay_webhook_path, _cryptopay_webhook_route)
     return app
 
 
@@ -44,12 +61,22 @@ async def run_wata_webhook_server(bot: Bot, threexui_runtime: ThreexuiRuntime) -
     await runner.setup()
     site = web.TCPSite(runner, host=host, port=port)
     await site.start()
-    logger.info(
-        "WATA webhook HTTP: http://%s:%s%s (укажите этот URL в ЛК WATA)",
-        host,
-        port,
-        settings.wata_webhook_path,
-    )
+    if settings.wata_api_configured():
+        logger.info(
+            "WATA webhook HTTP: http://%s:%s%s (укажите этот URL в ЛК WATA)",
+            host,
+            port,
+            settings.wata_webhook_path,
+        )
+    if settings.cryptopay_api_configured():
+        logger.info(
+            "Crypto Pay webhook HTTP: http://%s:%s%s (@CryptoBot → вебхук приложения)",
+            host,
+            port,
+            settings.cryptopay_webhook_path,
+        )
+    if settings.cryptopay_api_configured():
+        await sync_cryptopay_webhook_from_env()
     try:
         await asyncio.Future()
     finally:

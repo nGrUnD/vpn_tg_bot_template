@@ -12,6 +12,7 @@ from aiogram.enums import ParseMode
 from app.config import settings
 from app.db import close_db, init_db
 from app.handlers import root_router
+from app.services.cryptopay_client import aclose_cryptopay_http
 from app.services.wata_client import aclose_wata_http
 from app.wata_http import run_wata_webhook_server
 from app.middlewares import ChannelSubscriptionMiddleware, ThreexuiMiddleware
@@ -102,14 +103,18 @@ async def _run() -> None:
     dp.callback_query.middleware(channel_guard)
     dp.include_router(root_router)
 
-    if settings.wata_api_configured() and not settings.wata_webhook_server_enabled():
-        logger.warning(
-            "WATA: задан WATA_ACCESS_TOKEN, но HTTP_WEBHOOK_PORT=0 — HTTP-сервер webhook не запускается; "
-            "статусы оплат на этот процесс не придут (см. .env.example)"
-        )
+    if int(settings.http_webhook_port) == 0:
+        if settings.wata_api_configured():
+            logger.warning(
+                "WATA: задан WATA_ACCESS_TOKEN, но HTTP_WEBHOOK_PORT=0 — вебхук WATA на этот процесс не придёт"
+            )
+        if settings.cryptopay_api_configured():
+            logger.warning(
+                "CRYPTOPAY: задан CRYPTOPAY_API_TOKEN, но HTTP_WEBHOOK_PORT=0 — оплаты Crypto Bot не завершатся в боте"
+            )
 
     http_task: asyncio.Task[None] | None = None
-    if settings.wata_webhook_server_enabled():
+    if settings.payment_webhook_server_enabled():
         http_task = asyncio.create_task(run_wata_webhook_server(bot, threexui_runtime))
 
     await bot.delete_webhook(drop_pending_updates=False)
@@ -126,6 +131,7 @@ async def _run() -> None:
                 pass
         await close_db()
         await aclose_wata_http()
+        await aclose_cryptopay_http()
         await close_threexui_registry(registry)
         await bot.session.close()
 

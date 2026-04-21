@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 
 from aiogram import Bot
 from aiogram.types import CallbackQuery
@@ -43,7 +44,7 @@ async def open_buy_rub_payment_after_promo(
         order_id=order_id,
         telegram_id=tid,
         months=months,
-        amount_rub=amount,
+        amount=Decimal(amount),
     )
 
     try:
