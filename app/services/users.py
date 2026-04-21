@@ -114,6 +114,22 @@ async def trial_still_active(telegram_id: int) -> bool:
     return exp > _utcnow()
 
 
+async def should_show_trial_menu_button(telegram_id: int) -> bool:
+    """Кнопка «Получить N дней» — скрыть, если дата окончания trial уже в прошлом."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT trial_expires_at FROM users WHERE telegram_id = $1",
+            telegram_id,
+        )
+    if row is None or row["trial_expires_at"] is None:
+        return True
+    exp = _ensure_utc(row["trial_expires_at"])
+    if exp is None:
+        return True
+    return exp > _utcnow()
+
+
 async def paid_still_active(telegram_id: int) -> bool:
     pool = await get_pool()
     async with pool.acquire() as conn:

@@ -4,17 +4,21 @@ from app.config import settings
 from app.ru_plural import trial_button_caption
 
 
-def welcome_keyboard() -> InlineKeyboardMarkup:
+def welcome_keyboard(*, show_trial: bool = True) -> InlineKeyboardMarkup:
     """После проверки подписки: три кнопки."""
     days = settings.trial_days
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
+    rows: list[list[InlineKeyboardButton]] = []
+    if show_trial:
+        rows.append(
             [
                 InlineKeyboardButton(
                     text=trial_button_caption(days),
                     callback_data="trial_start:welcome",
                 ),
             ],
+        )
+    rows.extend(
+        [
             [
                 InlineKeyboardButton(
                     text="🛒 Купить доступ",
@@ -29,19 +33,24 @@ def welcome_keyboard() -> InlineKeyboardMarkup:
             ],
         ],
     )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def main_menu_keyboard() -> InlineKeyboardMarkup:
+def main_menu_keyboard(*, show_trial: bool = True) -> InlineKeyboardMarkup:
     """Полное главное меню (после кнопки «Главное меню»)."""
     days = settings.trial_days
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
+    rows: list[list[InlineKeyboardButton]] = []
+    if show_trial:
+        rows.append(
             [
                 InlineKeyboardButton(
                     text=trial_button_caption(days),
                     callback_data="trial_start:main",
                 ),
             ],
+        )
+    rows.extend(
+        [
             [
                 InlineKeyboardButton(
                     text="🛒 Купить доступ",
@@ -70,6 +79,7 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
             ],
         ],
     )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def instructions_keyboard(*, back_to: str) -> InlineKeyboardMarkup:

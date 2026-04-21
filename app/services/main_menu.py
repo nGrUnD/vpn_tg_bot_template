@@ -10,6 +10,7 @@ from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto
 from app import texts
 from app.keyboards.inline import main_menu_keyboard
 from app.paths import MAIN_MENU_IMAGE_PATH
+from app.services.users import should_show_trial_menu_button
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,9 @@ async def apply_full_main_menu_to_message(query: CallbackQuery, bot: Bot) -> Non
     if msg is None:
         return
 
-    kb = main_menu_keyboard()
+    uid = query.from_user.id if query.from_user else None
+    show_trial = uid is None or await should_show_trial_menu_button(uid)
+    kb = main_menu_keyboard(show_trial=show_trial)
     path = MAIN_MENU_IMAGE_PATH
 
     if path.is_file():

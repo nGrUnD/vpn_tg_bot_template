@@ -362,10 +362,10 @@ async def apply_buy_stars_payment_screen(
     path = (
         BUY_RUB_PAYMENT_IMAGE_PATH
         if BUY_RUB_PAYMENT_IMAGE_PATH.is_file()
-        else BUY_RUB_TARIFFS_IMAGE_PATH
+        else BUY_PROMO_IMAGE_PATH
     )
     if not path.is_file():
-        path = BUY_ACCESS_IMAGE_PATH
+        path = BUY_RUB_TARIFFS_IMAGE_PATH if BUY_RUB_TARIFFS_IMAGE_PATH.is_file() else BUY_ACCESS_IMAGE_PATH
 
     if path.is_file():
         media = InputMediaPhoto(
@@ -377,11 +377,7 @@ async def apply_buy_stars_payment_screen(
             await msg.edit_media(media=media, reply_markup=kb)
             return
         except TelegramBadRequest as e:
-            logger.info("edit_media buy_stars_payment не удался (%s), отправляю новое", e)
-            try:
-                await msg.delete()
-            except TelegramBadRequest:
-                pass
+            logger.info("edit_media buy_stars_payment не удался (%s), отправляю новое без удаления старого", e)
             await bot.send_photo(
                 chat_id=msg.chat.id,
                 photo=FSInputFile(path),

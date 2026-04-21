@@ -10,13 +10,16 @@ from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message
 from app import texts
 from app.keyboards.inline import welcome_keyboard
 from app.paths import WELCOME_IMAGE_PATH
+from app.services.users import should_show_trial_menu_button
 
 logger = logging.getLogger(__name__)
 
 
 async def apply_welcome_screen_to_message(msg: Message, bot: Bot) -> None:
     """Показать welcome (фото + текст + клавиатура) вместо текущего сообщения."""
-    kb = welcome_keyboard()
+    uid = msg.from_user.id if msg.from_user else None
+    show_trial = uid is None or await should_show_trial_menu_button(uid)
+    kb = welcome_keyboard(show_trial=show_trial)
     path = WELCOME_IMAGE_PATH
 
     if path.is_file():
@@ -53,7 +56,8 @@ async def apply_welcome_screen_to_message(msg: Message, bot: Bot) -> None:
 
 async def send_welcome(message: Message) -> None:
     """Приветствие после подписки или /start у подтверждённого пользователя."""
-    kb = welcome_keyboard()
+    show_trial = await should_show_trial_menu_button(message.from_user.id)
+    kb = welcome_keyboard(show_trial=show_trial)
     path = WELCOME_IMAGE_PATH
     if path.is_file():
         await message.answer_photo(
