@@ -74,6 +74,19 @@ async def mark_channel_verified(telegram_id: int) -> None:
         )
 
 
+async def clear_channel_verified(telegram_id: int) -> None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            UPDATE users
+            SET channel_verified_at = NULL, updated_at = NOW()
+            WHERE telegram_id = $1
+            """,
+            telegram_id,
+        )
+
+
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 

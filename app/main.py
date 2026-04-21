@@ -14,7 +14,7 @@ from app.db import close_db, init_db
 from app.handlers import root_router
 from app.services.wata_client import aclose_wata_http
 from app.wata_http import run_wata_webhook_server
-from app.middlewares import ThreexuiMiddleware
+from app.middlewares import ChannelSubscriptionMiddleware, ThreexuiMiddleware
 from app.services.threexui_backends import (
     ThreexuiRuntime,
     build_threexui_registry,
@@ -97,6 +97,7 @@ async def _run() -> None:
     )
     dp = Dispatcher()
     dp.update.middleware(ThreexuiMiddleware(threexui_runtime))
+    dp.update.middleware(ChannelSubscriptionMiddleware())
     dp.include_router(root_router)
 
     if settings.wata_api_configured() and not settings.wata_webhook_server_enabled():
