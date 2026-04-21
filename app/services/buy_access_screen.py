@@ -13,6 +13,7 @@ from app.keyboards.inline import (
     buy_promo_keyboard,
     buy_rub_payment_keyboard,
     buy_rub_tariffs_keyboard,
+    buy_stars_promo_keyboard,
     buy_stars_payment_keyboard,
     buy_stars_tariffs_keyboard,
 )
@@ -220,6 +221,59 @@ async def apply_buy_promo_screen(
             return
 
     logger.warning("Файл buy_promo не найден: %s", path)
+    try:
+        await msg.edit_text(caption, parse_mode=ParseMode.HTML, reply_markup=kb)
+    except TelegramBadRequest:
+        await bot.send_message(
+            msg.chat.id,
+            caption,
+            parse_mode=ParseMode.HTML,
+            reply_markup=kb,
+        )
+
+
+async def apply_buy_stars_promo_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    months: int,
+    back_to: str,
+) -> None:
+    msg = query.message
+    if msg is None:
+        return
+
+    caption = texts.BUY_PROMO_CAPTION
+    kb = buy_stars_promo_keyboard(months=months, back_to=back_to)
+    path = BUY_PROMO_IMAGE_PATH if BUY_PROMO_IMAGE_PATH.is_file() else BUY_RUB_TARIFFS_IMAGE_PATH
+    if not path.is_file():
+        path = BUY_ACCESS_IMAGE_PATH
+
+    if path.is_file():
+        media = InputMediaPhoto(
+            media=FSInputFile(path),
+            caption=caption,
+            parse_mode=ParseMode.HTML,
+        )
+        try:
+            await msg.edit_media(media=media, reply_markup=kb)
+            return
+        except TelegramBadRequest as e:
+            logger.info("edit_media buy_stars_promo не удался (%s), отправляю новое", e)
+            try:
+                await msg.delete()
+            except TelegramBadRequest:
+                pass
+            await bot.send_photo(
+                chat_id=msg.chat.id,
+                photo=FSInputFile(path),
+                caption=caption,
+                parse_mode=ParseMode.HTML,
+                reply_markup=kb,
+            )
+            return
+
+    logger.warning("Файл buy_stars_promo не найден: %s", path)
     try:
         await msg.edit_text(caption, parse_mode=ParseMode.HTML, reply_markup=kb)
     except TelegramBadRequest:

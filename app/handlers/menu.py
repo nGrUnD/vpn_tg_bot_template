@@ -31,6 +31,7 @@ from app.services.buy_access_screen import (
     apply_buy_access_screen,
     apply_buy_promo_screen,
     apply_buy_rub_tariffs_screen,
+    apply_buy_stars_promo_screen,
     apply_buy_stars_tariffs_screen,
 )
 from app.services.paid_access import ensure_paid_access_for_order
@@ -459,7 +460,7 @@ async def on_buy_stars_tariff(query: CallbackQuery, bot: Bot) -> None:
         await safe_answer(query)
         return
     back_to = parts[2] or "main"
-    await open_buy_stars_payment_screen(query, bot, months=months, back_to=back_to)
+    await apply_buy_stars_promo_screen(query, bot, months=months, back_to=back_to)
     await safe_answer(query)
 
 
@@ -468,6 +469,13 @@ async def on_buy_promo_back(query: CallbackQuery, bot: Bot) -> None:
     await safe_answer(query)
     back_to = (query.data or "").split(":", 1)[1] or "main"
     await apply_buy_rub_tariffs_screen(query, bot, back_to=back_to)
+
+
+@router.callback_query(F.data.startswith("buy_stars_promo_back:"))
+async def on_buy_stars_promo_back(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    back_to = (query.data or "").split(":", 1)[1] or "main"
+    await apply_buy_stars_tariffs_screen(query, bot, back_to=back_to)
 
 
 @router.callback_query(F.data.startswith("buy_promo_skip:"))
@@ -492,6 +500,23 @@ async def on_buy_promo_skip(query: CallbackQuery, bot: Bot) -> None:
         await safe_answer(query)
 
 
+@router.callback_query(F.data.startswith("buy_stars_promo_skip:"))
+async def on_buy_stars_promo_skip(query: CallbackQuery, bot: Bot) -> None:
+    raw = (query.data or "").strip()
+    parts = raw.split(":")
+    if len(parts) < 3 or parts[0] != "buy_stars_promo_skip":
+        await safe_answer(query)
+        return
+    try:
+        months = int(parts[1])
+    except ValueError:
+        await safe_answer(query)
+        return
+    back_to = parts[2] or "main"
+    await open_buy_stars_payment_screen(query, bot, months=months, back_to=back_to)
+    await safe_answer(query)
+
+
 @router.callback_query(F.data.startswith("buy_promo_open:"))
 async def on_buy_promo_open(query: CallbackQuery, bot: Bot) -> None:
     """С экрана оплаты — назад к промокоду."""
@@ -506,6 +531,21 @@ async def on_buy_promo_open(query: CallbackQuery, bot: Bot) -> None:
         return
     back_to = parts[2] or "main"
     await apply_buy_promo_screen(query, bot, months=months, back_to=back_to)
+
+
+@router.callback_query(F.data.startswith("buy_stars_promo_open:"))
+async def on_buy_stars_promo_open(query: CallbackQuery, bot: Bot) -> None:
+    await safe_answer(query)
+    raw = (query.data or "").strip()
+    parts = raw.split(":")
+    if len(parts) < 3 or parts[0] != "buy_stars_promo_open":
+        return
+    try:
+        months = int(parts[1])
+    except ValueError:
+        return
+    back_to = parts[2] or "main"
+    await apply_buy_stars_promo_screen(query, bot, months=months, back_to=back_to)
 
 
 @router.callback_query(F.data.startswith("buy_rub_verify:"))

@@ -309,6 +309,25 @@ def buy_promo_keyboard(*, months: int, back_to: str) -> InlineKeyboardMarkup:
     )
 
 
+def buy_stars_promo_keyboard(*, months: int, back_to: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⏭️ Пропустить",
+                    callback_data=f"buy_stars_promo_skip:{months}:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"buy_stars_promo_back:{back_to}",
+                ),
+            ],
+        ],
+    )
+
+
 def buy_rub_payment_keyboard(
     *,
     months: int,
@@ -370,14 +389,8 @@ def buy_stars_payment_keyboard(
             ],
             [
                 InlineKeyboardButton(
-                    text="🔄 Проверить оплату",
-                    callback_data=f"buy_stars_verify:{months}:{back_to}",
-                ),
-            ],
-            [
-                InlineKeyboardButton(
                     text="⬅️ Назад",
-                    callback_data=f"buy_pay_stars:{back_to}",
+                    callback_data=f"buy_stars_promo_open:{months}:{back_to}",
                 ),
             ],
             [
