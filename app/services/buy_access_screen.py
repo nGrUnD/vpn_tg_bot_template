@@ -13,6 +13,8 @@ from app.keyboards.inline import (
     buy_promo_keyboard,
     buy_rub_payment_keyboard,
     buy_rub_tariffs_keyboard,
+    buy_stars_payment_keyboard,
+    buy_stars_tariffs_keyboard,
 )
 from app.paths import (
     BUY_ACCESS_IMAGE_PATH,
@@ -114,6 +116,56 @@ async def apply_buy_rub_tariffs_screen(
             return
 
     logger.warning("Файл buy_rub_tariffs не найден: %s", path)
+    try:
+        await msg.edit_text(caption, parse_mode=ParseMode.HTML, reply_markup=kb)
+    except TelegramBadRequest:
+        await bot.send_message(
+            msg.chat.id,
+            caption,
+            parse_mode=ParseMode.HTML,
+            reply_markup=kb,
+        )
+
+
+async def apply_buy_stars_tariffs_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    back_to: str,
+) -> None:
+    msg = query.message
+    if msg is None:
+        return
+
+    caption = texts.BUY_STARS_TARIFFS_CAPTION
+    kb = buy_stars_tariffs_keyboard(back_to=back_to)
+    path = BUY_RUB_TARIFFS_IMAGE_PATH if BUY_RUB_TARIFFS_IMAGE_PATH.is_file() else BUY_ACCESS_IMAGE_PATH
+
+    if path.is_file():
+        media = InputMediaPhoto(
+            media=FSInputFile(path),
+            caption=caption,
+            parse_mode=ParseMode.HTML,
+        )
+        try:
+            await msg.edit_media(media=media, reply_markup=kb)
+            return
+        except TelegramBadRequest as e:
+            logger.info("edit_media buy_stars_tariffs не удался (%s), отправляю новое", e)
+            try:
+                await msg.delete()
+            except TelegramBadRequest:
+                pass
+            await bot.send_photo(
+                chat_id=msg.chat.id,
+                photo=FSInputFile(path),
+                caption=caption,
+                parse_mode=ParseMode.HTML,
+                reply_markup=kb,
+            )
+            return
+
+    logger.warning("Файл buy_stars_tariffs не найден: %s", path)
     try:
         await msg.edit_text(caption, parse_mode=ParseMode.HTML, reply_markup=kb)
     except TelegramBadRequest:
@@ -228,6 +280,65 @@ async def apply_buy_rub_payment_screen(
             return
 
     logger.warning("Файл buy_rub_payment не найден: %s", path)
+    try:
+        await msg.edit_text(caption, parse_mode=ParseMode.HTML, reply_markup=kb)
+    except TelegramBadRequest:
+        await bot.send_message(
+            msg.chat.id,
+            caption,
+            parse_mode=ParseMode.HTML,
+            reply_markup=kb,
+        )
+
+
+async def apply_buy_stars_payment_screen(
+    query: CallbackQuery,
+    bot: Bot,
+    *,
+    order_id: str,
+    months: int,
+    back_to: str,
+) -> None:
+    msg = query.message
+    if msg is None:
+        return
+
+    amount = texts.stars_tariff_amount(months)
+    caption = texts.buy_stars_payment_caption(amount)
+    kb = buy_stars_payment_keyboard(order_id=order_id, months=months, back_to=back_to)
+    path = (
+        BUY_RUB_PAYMENT_IMAGE_PATH
+        if BUY_RUB_PAYMENT_IMAGE_PATH.is_file()
+        else BUY_RUB_TARIFFS_IMAGE_PATH
+    )
+    if not path.is_file():
+        path = BUY_ACCESS_IMAGE_PATH
+
+    if path.is_file():
+        media = InputMediaPhoto(
+            media=FSInputFile(path),
+            caption=caption,
+            parse_mode=ParseMode.HTML,
+        )
+        try:
+            await msg.edit_media(media=media, reply_markup=kb)
+            return
+        except TelegramBadRequest as e:
+            logger.info("edit_media buy_stars_payment не удался (%s), отправляю новое", e)
+            try:
+                await msg.delete()
+            except TelegramBadRequest:
+                pass
+            await bot.send_photo(
+                chat_id=msg.chat.id,
+                photo=FSInputFile(path),
+                caption=caption,
+                parse_mode=ParseMode.HTML,
+                reply_markup=kb,
+            )
+            return
+
+    logger.warning("Файл buy_stars_payment не найден: %s", path)
     try:
         await msg.edit_text(caption, parse_mode=ParseMode.HTML, reply_markup=kb)
     except TelegramBadRequest:

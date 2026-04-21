@@ -39,6 +39,8 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
     ) -> Any:
         if message.from_user is None:
             return await handler(message, data)
+        if message.successful_payment is not None:
+            return await handler(message, data)
 
         text = (message.text or "").strip()
         if text.startswith("/start"):

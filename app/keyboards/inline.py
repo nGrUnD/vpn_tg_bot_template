@@ -190,6 +190,12 @@ def buy_access_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
+                    text="⭐️ Telegram Stars",
+                    callback_data=f"buy_pay_stars:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
                     text="Криптовалюта🌑",
                     callback_data=f"buy_pay_crypto:{back_to}",
                 ),
@@ -235,6 +241,43 @@ def buy_rub_tariffs_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="1 год. - 2499 ₽ (-25%)",
                     callback_data=f"buy_tariff:12:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"buy_access:{back_to}",
+                ),
+            ],
+        ],
+    )
+
+
+def buy_stars_tariffs_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="1 мес. - 149 ⭐️",
+                    callback_data=f"buy_stars_tariff:1:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="3 мес. - 389 ⭐️ (-15%)",
+                    callback_data=f"buy_stars_tariff:3:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="6 мес. - 739 ⭐️ (-25%)",
+                    callback_data=f"buy_stars_tariff:6:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="1 год. - 1349 ⭐️ (-30%)",
+                    callback_data=f"buy_stars_tariff:12:{back_to}",
                 ),
             ],
             [
@@ -299,6 +342,42 @@ def buy_rub_payment_keyboard(
                 InlineKeyboardButton(
                     text="⬅️ Назад",
                     callback_data=f"buy_promo_open:{months}:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📌 Главное меню",
+                    callback_data="main_menu",
+                ),
+            ],
+        ],
+    )
+
+
+def buy_stars_payment_keyboard(
+    *,
+    order_id: str,
+    months: int,
+    back_to: str,
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⭐️ Оплатить звёздами",
+                    callback_data=f"buy_stars_pay:{order_id}:{months}:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🔄 Проверить оплату",
+                    callback_data=f"buy_stars_verify:{months}:{back_to}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"buy_pay_stars:{back_to}",
                 ),
             ],
             [

@@ -20,6 +20,7 @@ async def insert_pending_order(
     telegram_id: int,
     months: int,
     amount_rub: int,
+    payment_method: str = "rub",
     currency: str = "RUB",
 ) -> None:
     pool = await get_pool()
@@ -27,14 +28,15 @@ async def insert_pending_order(
         await conn.execute(
             """
             INSERT INTO rub_payment_orders (
-                order_id, telegram_id, months, amount_rub, currency, status
+                order_id, telegram_id, months, amount_rub, payment_method, currency, status
             )
-            VALUES ($1, $2, $3, $4, $5, 'pending')
+            VALUES ($1, $2, $3, $4, $5, $6, 'pending')
             """,
             order_id,
             telegram_id,
             months,
             Decimal(amount_rub),
+            payment_method,
             currency,
         )
 
@@ -65,6 +67,7 @@ async def get_latest_order_for_user_tariff(
     *,
     telegram_id: int,
     months: int,
+    payment_method: str = "rub",
 ) -> asyncpg.Record | None:
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -81,12 +84,13 @@ async def get_latest_order_for_user_tariff(
                    access_expires_at,
                    provisioned_at
             FROM rub_payment_orders
-            WHERE telegram_id = $1 AND months = $2
+            WHERE telegram_id = $1 AND months = $2 AND payment_method = $3
             ORDER BY created_at DESC
             LIMIT 1
             """,
             telegram_id,
             months,
+            payment_method,
         )
 
 
@@ -99,6 +103,7 @@ async def get_order(order_id: str) -> asyncpg.Record | None:
                    telegram_id,
                    months,
                    amount_rub,
+                   payment_method,
                    currency,
                    status,
                    wata_payment_link_id,
@@ -149,6 +154,32 @@ async def mark_paid_from_webhook(
         )
 
 
+async def mark_paid_from_stars(
+    *,
+    order_id: str,
+    telegram_payment_charge_id: str,
+    provider_payment_charge_id: str | None,
+) -> asyncpg.Record | None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow(
+            """
+            UPDATE rub_payment_orders
+            SET status = 'paid',
+                telegram_payment_charge_id = $2,
+                provider_payment_charge_id = COALESCE($3, provider_payment_charge_id),
+                last_wata_status = 'Paid',
+                paid_at = NOW(),
+                updated_at = NOW()
+            WHERE order_id = $1 AND status = 'pending' AND payment_method = 'stars'
+            RETURNING telegram_id, months, amount_rub
+            """,
+            order_id,
+            telegram_payment_charge_id,
+            provider_payment_charge_id,
+        )
+
+
 async def claim_order_for_provision(order_id: str) -> asyncpg.Record | None:
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -168,7 +199,7 @@ async def claim_order_for_provision(order_id: str) -> asyncpg.Record | None:
                         AND updated_at < NOW() - INTERVAL '3 minutes'
                     )
                   )
-            RETURNING order_id, telegram_id, months, amount_rub, currency, paid_at
+            RETURNING order_id, telegram_id, months, amount_rub, payment_method, currency, paid_at
             """,
             order_id,
         )

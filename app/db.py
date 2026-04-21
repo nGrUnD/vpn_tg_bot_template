@@ -119,10 +119,13 @@ async def init_db() -> None:
                 telegram_id BIGINT NOT NULL,
                 months INT NOT NULL,
                 amount_rub NUMERIC(12, 2) NOT NULL,
+                payment_method VARCHAR(16) NOT NULL DEFAULT 'rub',
                 currency VARCHAR(8) NOT NULL DEFAULT 'RUB',
                 status VARCHAR(32) NOT NULL DEFAULT 'pending',
                 wata_payment_link_id VARCHAR(64),
                 wata_transaction_id VARCHAR(64),
+                telegram_payment_charge_id VARCHAR(128),
+                provider_payment_charge_id VARCHAR(128),
                 payment_url TEXT,
                 last_wata_status VARCHAR(32),
                 last_error TEXT,
@@ -138,6 +141,16 @@ async def init_db() -> None:
                 paid_at TIMESTAMPTZ
             );
             """
+        )
+        await conn.execute(
+            "ALTER TABLE rub_payment_orders ADD COLUMN IF NOT EXISTS payment_method "
+            "VARCHAR(16) NOT NULL DEFAULT 'rub'"
+        )
+        await conn.execute(
+            "ALTER TABLE rub_payment_orders ADD COLUMN IF NOT EXISTS telegram_payment_charge_id VARCHAR(128)"
+        )
+        await conn.execute(
+            "ALTER TABLE rub_payment_orders ADD COLUMN IF NOT EXISTS provider_payment_charge_id VARCHAR(128)"
         )
         await conn.execute(
             "ALTER TABLE rub_payment_orders ADD COLUMN IF NOT EXISTS provisioning_status "
