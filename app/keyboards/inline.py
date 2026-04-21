@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app import texts
@@ -295,7 +297,7 @@ def buy_stars_tariffs_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
     )
 
 
-def buy_crypto_tariffs_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
+def buy_crypto_tariffs_keyboard(*, back_to: str, rub_per_usdt: Decimal) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     spec = (
         (1, "1 мес."),
@@ -304,7 +306,9 @@ def buy_crypto_tariffs_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
         (12, "1 год"),
     )
     for months, label in spec:
-        amt = texts.format_crypto_usdt(texts.crypto_tariff_amount_usdt(months))
+        amt = texts.format_crypto_usdt(
+            texts.crypto_tariff_amount_usdt(months, rub_per_usdt=rub_per_usdt),
+        )
         rows.append(
             [
                 InlineKeyboardButton(

@@ -2,7 +2,6 @@ import html
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
-from app.config import settings
 from app.ru_plural import days_form
 
 _RU_MONTHS = (
@@ -113,12 +112,10 @@ def tariff_period_label(months: int) -> str:
     return {1: "1 мес", 3: "3 мес", 6: "6 мес"}.get(m, f"{m} мес.")
 
 
-def crypto_tariff_amount_usdt(months: int) -> Decimal:
-    """Цена в USDT: та же тарифная цена в ₽ (`rub_tariff_amount_rub`), делённая на курс из .env."""
+def crypto_tariff_amount_usdt(months: int, *, rub_per_usdt: Decimal) -> Decimal:
+    """Цена в USDT: цена тарифа в ₽ / курс «₽ за 1 USDT»."""
     rub = Decimal(rub_tariff_amount_rub(months))
-    per_usdt = settings.cryptopay_rub_per_usdt
-    if per_usdt <= 0:
-        per_usdt = Decimal("83")
+    per_usdt = rub_per_usdt if rub_per_usdt > 0 else Decimal("83")
     q = Decimal("0.01")
     return (rub / per_usdt).quantize(q, rounding=ROUND_HALF_UP)
 
@@ -138,20 +135,30 @@ CRYPTOPAY_CREATE_FAILED_ALERT = (
     "Не удалось создать счёт в CryptoBot. Проверьте токен API и повторите попытку позже."
 )
 
-BUY_CRYPTO_TARIFFS_CAPTION = (
-    "💎 <b>Оплата CryptoBot</b>\n\n"
-    "Сумма в USDT считается из цены в рублях по курсу из настроек бота.\n"
-    "Выберите срок подписки⬇️"
-)
+def buy_crypto_tariffs_caption(*, rub_per_usdt: Decimal) -> str:
+    r = rub_per_usdt.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return (
+        "💎 <b>Оплата CryptoBot</b>\n\n"
+        f"Курс: <b>1 USDT ≈ {r} ₽</b> (автообновление по CoinGecko, кэш ~1 ч).\n"
+        "Сумма в USDT — из цены тарифа в рублях.\n"
+        "Выберите срок подписки⬇️"
+    )
 
 
-def crypto_payment_screen_caption(*, months: int, amount_usdt: Decimal) -> str:
+def crypto_payment_screen_caption(
+    *,
+    months: int,
+    amount_usdt: Decimal,
+    rub_per_usdt: Decimal,
+) -> str:
     plan = tariff_period_label(months)
     amt = format_crypto_usdt(amount_usdt)
     rub = rub_tariff_amount_rub(months)
+    rk = rub_per_usdt.quantize(Decimal("0.01"))
     return (
         "💎 <b>Оплата CryptoBot</b>\n\n"
         f"<b>План:</b> {plan}\n"
+        f"<b>Курс:</b> 1 USDT ≈ {rk} ₽\n"
         f"<b>Эквивалент:</b> {rub} ₽ → <b>{amt} USDT</b>\n\n"
         "Оплатите по ссылке. После оплаты подписка активируется автоматически.\n"
         "Ссылка на подписку всегда доступна в «⭐️ Мои подключения» (профиль)."

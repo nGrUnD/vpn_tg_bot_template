@@ -10,6 +10,7 @@ from app.config import settings
 from app.services import rub_orders
 from app.services.buy_access_screen import apply_buy_crypto_payment_screen
 from app.services.cryptopay_client import create_invoice, invoice_payment_url
+from app.services.usdt_rub_rate import get_rub_per_usdt
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,8 @@ async def open_crypto_payment_for_tariff(
         return None
 
     tid = user.id
-    amount_dec = texts.crypto_tariff_amount_usdt(months)
+    rub_per_usdt = await get_rub_per_usdt()
+    amount_dec = texts.crypto_tariff_amount_usdt(months, rub_per_usdt=rub_per_usdt)
     amount_str = texts.format_crypto_usdt(amount_dec)
     order_id = rub_orders.new_order_id(tid)
     desc = texts.cryptopay_invoice_description(months=months, telegram_id=tid)
@@ -62,6 +64,7 @@ async def open_crypto_payment_for_tariff(
             months=months,
             back_to=back_to,
             amount_usdt=amount_dec,
+            rub_per_usdt=rub_per_usdt,
             pay_url=None,
         )
         return texts.CRYPTOPAY_CREATE_FAILED_ALERT
@@ -83,6 +86,7 @@ async def open_crypto_payment_for_tariff(
         months=months,
         back_to=back_to,
         amount_usdt=amount_dec,
+        rub_per_usdt=rub_per_usdt,
         pay_url=pay_url,
     )
     return None if pay_url else texts.CRYPTOPAY_CREATE_FAILED_ALERT

@@ -26,6 +26,7 @@ from app.paths import (
     BUY_RUB_PAYMENT_IMAGE_PATH,
     BUY_RUB_TARIFFS_IMAGE_PATH,
 )
+from app.services.usdt_rub_rate import get_rub_per_usdt
 
 logger = logging.getLogger(__name__)
 
@@ -191,8 +192,9 @@ async def apply_buy_crypto_tariffs_screen(
     if msg is None:
         return
 
-    caption = texts.BUY_CRYPTO_TARIFFS_CAPTION
-    kb = buy_crypto_tariffs_keyboard(back_to=back_to)
+    rub_per_usdt = await get_rub_per_usdt()
+    caption = texts.buy_crypto_tariffs_caption(rub_per_usdt=rub_per_usdt)
+    kb = buy_crypto_tariffs_keyboard(back_to=back_to, rub_per_usdt=rub_per_usdt)
     path = BUY_RUB_TARIFFS_IMAGE_PATH if BUY_RUB_TARIFFS_IMAGE_PATH.is_file() else BUY_ACCESS_IMAGE_PATH
 
     if path.is_file():
@@ -238,13 +240,18 @@ async def apply_buy_crypto_payment_screen(
     months: int,
     back_to: str,
     amount_usdt: Decimal,
+    rub_per_usdt: Decimal,
     pay_url: str | None,
 ) -> None:
     msg = query.message
     if msg is None:
         return
 
-    caption = texts.crypto_payment_screen_caption(months=months, amount_usdt=amount_usdt)
+    caption = texts.crypto_payment_screen_caption(
+        months=months,
+        amount_usdt=amount_usdt,
+        rub_per_usdt=rub_per_usdt,
+    )
     kb = buy_crypto_payment_keyboard(pay_url=pay_url, back_to=back_to)
     path = BUY_RUB_PAYMENT_IMAGE_PATH if BUY_RUB_PAYMENT_IMAGE_PATH.is_file() else BUY_ACCESS_IMAGE_PATH
 

@@ -161,7 +161,7 @@ class Settings(BaseSettings):
     cryptopay_webhook_path: str = Field(default="/webhooks/cryptobot", validation_alias="CRYPTOPAY_WEBHOOK_PATH")
     cryptopay_webhook_verify_signature: bool = Field(default=True, validation_alias="CRYPTOPAY_WEBHOOK_VERIFY_SIGNATURE")
     cryptopay_webhook_public_url: str | None = Field(default=None, validation_alias="CRYPTOPAY_WEBHOOK_PUBLIC_URL")
-    # Сколько ₽ за 1 USDT — цена USDT в тарифах = rub_tariff_amount_rub / CRYPTOPAY_RUB_PER_USDT
+    # Резерв, если API курса недоступен (см. app/services/usdt_rub_rate.py — CoinGecko)
     cryptopay_rub_per_usdt: Decimal = Field(
         default=Decimal("83"),
         ge=Decimal("0.01"),
