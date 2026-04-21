@@ -74,7 +74,7 @@ async def _show_active_connections(
         bot,
         back_to=back_to,
         caption_html=texts.active_connections_caption(
-            access_label=access.access_label,
+            access_kind=access.kind,
             description=description,
             subscription_url=access.subscription_url,
         ),

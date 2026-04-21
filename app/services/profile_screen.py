@@ -11,7 +11,7 @@ from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto
 from app import texts
 from app.keyboards.inline import profile_keyboard
 from app.paths import PROFILE_IMAGE_PATH
-from app.services.users import fetch_profile_row, get_active_access
+from app.services.users import fetch_profile_row, get_active_access, paid_still_active
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +46,10 @@ async def apply_profile_screen(query: CallbackQuery, bot: Bot) -> None:
     if msg is None or query.from_user is None:
         return
 
-    caption = await build_profile_caption_html(query.from_user.id)
-    kb = profile_keyboard()
+    tid = query.from_user.id
+    caption = await build_profile_caption_html(tid)
+    buy_extend = await paid_still_active(tid)
+    kb = profile_keyboard(buy_extend=buy_extend)
     path = PROFILE_IMAGE_PATH
 
     if path.is_file():

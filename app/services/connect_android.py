@@ -9,6 +9,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, InlineKeyboardMarkup
 
 from app import texts
+from app.services.users import get_active_access
 from app.keyboards.inline import (
     android_apps_choice_keyboard,
     android_instructions_android_sub_keyboard,
@@ -81,10 +82,15 @@ async def apply_android_trial_guide_screen(
     back_to: str,
     subscription_url: str | None,
 ) -> None:
+    tid = query.from_user.id if query.from_user else 0
+    has_active = (await get_active_access(tid)) is not None if tid else False
     await _apply_photo_screen(
         query,
         bot,
-        caption=texts.android_trial_guide_caption(subscription_url),
+        caption=texts.android_trial_guide_caption(
+            subscription_url,
+            has_active_access=has_active,
+        ),
         kb=android_trial_guide_keyboard(back_to=back_to),
         path=ANDROID_TRIAL_GUIDE_IMAGE_PATH,
         log_label="android trial",

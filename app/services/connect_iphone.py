@@ -9,6 +9,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, InlineKeyboardMarkup
 
 from app import texts
+from app.services.users import get_active_access
 from app.keyboards.inline import (
     iphone_guide_keyboard,
     iphone_instructions_apps_keyboard,
@@ -161,10 +162,15 @@ async def apply_iphone_guide_screen(
     subscription_url: str | None,
     back_callback_data: str | None = None,
 ) -> None:
+    tid = query.from_user.id if query.from_user else 0
+    has_active = (await get_active_access(tid)) is not None if tid else False
     await _apply_iphone_visual_screen(
         query,
         bot,
-        caption=texts.iphone_guide_caption(subscription_url),
+        caption=texts.iphone_guide_caption(
+            subscription_url,
+            has_active_access=has_active,
+        ),
         kb=iphone_guide_keyboard(back_to=back_to, back_callback_data=back_callback_data),
         path=IPHONE_GUIDE_IMAGE_PATH,
         log_label="iphone guide",

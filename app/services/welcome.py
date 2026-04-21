@@ -10,7 +10,7 @@ from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message
 from app import texts
 from app.keyboards.inline import welcome_keyboard
 from app.paths import WELCOME_IMAGE_PATH
-from app.services.users import should_show_trial_menu_button
+from app.services.users import paid_still_active, should_show_trial_menu_button
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,8 @@ async def apply_welcome_screen_to_message(msg: Message, bot: Bot) -> None:
     """Показать welcome (фото + текст + клавиатура) вместо текущего сообщения."""
     uid = msg.from_user.id if msg.from_user else None
     show_trial = uid is None or await should_show_trial_menu_button(uid)
-    kb = welcome_keyboard(show_trial=show_trial)
+    buy_extend = bool(uid is not None and await paid_still_active(uid))
+    kb = welcome_keyboard(show_trial=show_trial, buy_extend=buy_extend)
     path = WELCOME_IMAGE_PATH
 
     if path.is_file():
@@ -56,8 +57,10 @@ async def apply_welcome_screen_to_message(msg: Message, bot: Bot) -> None:
 
 async def send_welcome(message: Message) -> None:
     """Приветствие после подписки или /start у подтверждённого пользователя."""
-    show_trial = await should_show_trial_menu_button(message.from_user.id)
-    kb = welcome_keyboard(show_trial=show_trial)
+    uid = message.from_user.id
+    show_trial = await should_show_trial_menu_button(uid)
+    buy_extend = await paid_still_active(uid)
+    kb = welcome_keyboard(show_trial=show_trial, buy_extend=buy_extend)
     path = WELCOME_IMAGE_PATH
     if path.is_file():
         await message.answer_photo(

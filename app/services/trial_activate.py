@@ -53,7 +53,7 @@ async def run_trial_activation_flow(
             bot,
             back_to=back_to,
             caption_html=texts.active_connections_caption(
-                access_label=active_access.access_label,
+                access_kind=active_access.kind,
                 description=f"Доступ активен до {texts.format_ru_date(active_access.expires_at)}.",
                 subscription_url=active_access.subscription_url,
             ),

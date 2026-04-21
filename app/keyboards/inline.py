@@ -4,7 +4,7 @@ from app.config import settings
 from app.ru_plural import trial_button_caption
 
 
-def welcome_keyboard(*, show_trial: bool = True) -> InlineKeyboardMarkup:
+def welcome_keyboard(*, show_trial: bool = True, buy_extend: bool = False) -> InlineKeyboardMarkup:
     """После проверки подписки: три кнопки."""
     days = settings.trial_days
     rows: list[list[InlineKeyboardButton]] = []
@@ -21,7 +21,7 @@ def welcome_keyboard(*, show_trial: bool = True) -> InlineKeyboardMarkup:
         [
             [
                 InlineKeyboardButton(
-                    text="🛒 Купить доступ",
+                    text=("🛒 Продлить доступ" if buy_extend else "🛒 Купить доступ"),
                     callback_data="buy_access:welcome",
                 ),
             ],
@@ -36,7 +36,7 @@ def welcome_keyboard(*, show_trial: bool = True) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def main_menu_keyboard(*, show_trial: bool = True) -> InlineKeyboardMarkup:
+def main_menu_keyboard(*, show_trial: bool = True, buy_extend: bool = False) -> InlineKeyboardMarkup:
     """Полное главное меню (после кнопки «Главное меню»)."""
     days = settings.trial_days
     rows: list[list[InlineKeyboardButton]] = []
@@ -53,7 +53,7 @@ def main_menu_keyboard(*, show_trial: bool = True) -> InlineKeyboardMarkup:
         [
             [
                 InlineKeyboardButton(
-                    text="🛒 Купить доступ",
+                    text=("🛒 Продлить доступ" if buy_extend else "🛒 Купить доступ"),
                     callback_data="buy_access:main",
                 ),
             ],
@@ -138,12 +138,6 @@ def trial_connections_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(
-                text="🔎 Не работает VPN?",
-                callback_data=f"vpn_troubleshoot:{back_to}",
-            ),
-        ],
-        [
-            InlineKeyboardButton(
                 text="📝 Инструкции по подключению",
                 callback_data=f"instructions:{back_to}",
             ),
@@ -158,7 +152,7 @@ def trial_connections_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def profile_keyboard() -> InlineKeyboardMarkup:
+def profile_keyboard(*, buy_extend: bool = False) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -169,7 +163,7 @@ def profile_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text="🛒 Купить доступ",
+                    text=("🛒 Продлить доступ" if buy_extend else "🛒 Купить доступ"),
                     callback_data="buy_access:profile",
                 ),
             ],
@@ -413,20 +407,8 @@ def buy_stars_payment_keyboard(
 
 
 def android_trial_guide_keyboard(*, back_to: str) -> InlineKeyboardMarkup:
-    inst = settings.android_instruction_url
-    inst_row = (
-        [InlineKeyboardButton(text="Инструкция для Android", url=inst)]
-        if inst
-        else [
-            InlineKeyboardButton(
-                text="Инструкция для Android",
-                callback_data="android_instruction",
-            ),
-        ]
-    )
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            inst_row,
             [
                 InlineKeyboardButton(
                     text="Подключить другое устройство",
@@ -560,12 +542,6 @@ def iphone_guide_keyboard(
     back_row = back_callback_data if back_callback_data is not None else f"trial_back:{back_to}"
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="📝 Инструкции по подключению",
-                    callback_data=f"iphone_instr_hub:t:{back_to}",
-                ),
-            ],
             [
                 InlineKeyboardButton(
                     text="Подключить другое устройство",

@@ -171,7 +171,7 @@ CHECK_SUBSCRIPTION_FAILED_ALERT = (
 def trial_connections_caption(days: int, subscription_url: str | None = None) -> str:
     d = days_form(days)
     return active_connections_caption(
-        access_label="Пробный период",
+        access_kind="trial",
         description=f"Доступ выдан на {days} {d}.",
         subscription_url=subscription_url,
     )
@@ -179,13 +179,17 @@ def trial_connections_caption(days: int, subscription_url: str | None = None) ->
 
 def active_connections_caption(
     *,
-    access_label: str,
+    access_kind: str,
     description: str,
     subscription_url: str | None = None,
 ) -> str:
+    if access_kind == "paid":
+        access_line = "Доступ: Полный 👑"
+    else:
+        access_line = "Доступ: Пробный период ✅"
     base = (
         "⭐️ <b>Мои подключения</b>\n\n"
-        f"Доступ: {access_label} ✅\n\n"
+        f"{access_line}\n\n"
         f"{description}\n\n"
     )
     if subscription_url and subscription_url.strip():
@@ -198,11 +202,17 @@ def active_connections_caption(
     return base
 
 
-def instructions_caption(subscription_url: str | None) -> str:
+def instructions_caption(subscription_url: str | None, *, has_active_access: bool) -> str:
     """Экран «Инструкции по подключению» (ссылка как в «Мои подключения»)."""
-    body = (
-        "📝 <b>Инструкции по подключению</b>\n\n"
-        "Подписка активирована ✅\n\n"
+    body = "📝 <b>Инструкции по подключению</b>\n\n"
+    if has_active_access:
+        body += "Подписка активирована ✅\n\n"
+    else:
+        body += (
+            "Активного VPN-доступа пока нет. Получите пробный период или оформите подписку "
+            "через главное меню.\n\n"
+        )
+    body += (
         "Откройте ссылку на страницу подключения ниже. На странице будут кнопки Happ и Hiddify "
         "для автоимпорта в приложение.\n\n"
     )
@@ -376,14 +386,20 @@ def iphone_instr_v2raytun_detail_caption() -> str:
     )
 
 
-def iphone_guide_caption(subscription_url: str | None) -> str:
+def iphone_guide_caption(subscription_url: str | None, *, has_active_access: bool) -> str:
     happ = html.escape(IPHONE_HAPP_APP_STORE_URL, quote=True)
     hid = html.escape(IPHONE_HIDDIFY_APP_STORE_URL, quote=True)
     v2 = html.escape(IPHONE_V2RAYTUN_APP_STORE_URL, quote=True)
     guide = html.escape("https://telegra.ph/Instrukciya-dlya-Iphone-04-19-2", quote=True)
-    body = (
-        "🍏 <b>Подключение для iPhone</b>\n\n"
-        "Подписка активирована ✅\n\n"
+    body = "🍏 <b>Подключение для iPhone</b>\n\n"
+    if has_active_access:
+        body += "Подписка активирована ✅\n\n"
+    else:
+        body += (
+            "Активного VPN-доступа пока нет. Получите пробный период или оформите подписку "
+            "через главное меню.\n\n"
+        )
+    body += (
         "Откройте ссылку на страницу подключения в боте.\n\n"
         "Установите одно из приложений, если оно ещё не установлено:\n"
         f'— hApp — <a href="{happ}">скачать</a>\n'
@@ -432,13 +448,19 @@ def android_apps_instruction_caption() -> str:
     )
 
 
-def android_trial_guide_caption(subscription_url: str | None) -> str:
+def android_trial_guide_caption(subscription_url: str | None, *, has_active_access: bool) -> str:
     happ = html.escape(ANDROID_HAPP_PLAY_URL, quote=True)
     hid = html.escape(ANDROID_HIDDIFY_PLAY_URL, quote=True)
     v2 = html.escape(ANDROID_V2RAYTUN_PLAY_URL, quote=True)
-    body = (
-        "📱 <b>Подключение для Android</b>\n\n"
-        "Подписка активирована ✅\n\n"
+    body = "📱 <b>Подключение для Android</b>\n\n"
+    if has_active_access:
+        body += "Подписка активирована ✅\n\n"
+    else:
+        body += (
+            "Активного VPN-доступа пока нет. Получите пробный период или оформите подписку "
+            "через главное меню.\n\n"
+        )
+    body += (
         "Откройте ссылку на страницу подключения в боте.\n\n"
         "Установите одно из приложений, если оно ещё не установлено:\n"
         f'— hApp — <a href="{happ}">скачать</a>\n'
@@ -536,9 +558,6 @@ def vpn_reissue_error_caption(detail: str) -> str:
 
 SUPPORT_CAPTION = (
     "🛠 <b>Поддержка</b>\n\n"
-    "<b>Если VPN не работает:</b>\n"
-    "1. Откройте «⭐️ Мои подключения»\n"
-    "2. Нажмите «🔎 Не работает VPN?»\n\n"
-    "Если не помогло, напишите сюда: "
+    "<b>Если VPN не работает:</b> опишите проблему и напишите сюда — "
     f'<a href="{SUPPORT_TELEGRAM_URL}">@{SUPPORT_HANDLE}</a>'
 )
