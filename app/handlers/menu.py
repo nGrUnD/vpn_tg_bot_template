@@ -623,15 +623,23 @@ async def on_buy_stars_pay(query: CallbackQuery, bot: Bot) -> None:
         return
     raw = (query.data or "").strip()
     parts = raw.split(":")
-    if len(parts) < 4 or parts[0] != "buy_stars_pay":
+    if len(parts) < 3 or parts[0] != "buy_stars_pay":
         await safe_answer(query)
         return
-    order_id = parts[1].strip()
     try:
-        months = int(parts[2])
+        months = int(parts[1])
     except ValueError:
         await safe_answer(query)
         return
+    pending_order = await rub_orders.get_latest_pending_order_for_user_tariff(
+        telegram_id=query.from_user.id,
+        months=months,
+        payment_method="stars",
+    )
+    if pending_order is None:
+        await safe_answer(query, texts.STARS_VERIFY_NONE, show_alert=True)
+        return
+    order_id = str(pending_order["order_id"]).strip()
 
     amount = texts.stars_tariff_amount(months)
     await bot.send_invoice(

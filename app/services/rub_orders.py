@@ -94,6 +94,36 @@ async def get_latest_order_for_user_tariff(
         )
 
 
+async def get_latest_pending_order_for_user_tariff(
+    *,
+    telegram_id: int,
+    months: int,
+    payment_method: str,
+) -> asyncpg.Record | None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchrow(
+            """
+            SELECT order_id,
+                   status,
+                   amount_rub,
+                   payment_method,
+                   currency,
+                   created_at
+            FROM rub_payment_orders
+            WHERE telegram_id = $1
+              AND months = $2
+              AND payment_method = $3
+              AND status = 'pending'
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            telegram_id,
+            months,
+            payment_method,
+        )
+
+
 async def get_order(order_id: str) -> asyncpg.Record | None:
     pool = await get_pool()
     async with pool.acquire() as conn:

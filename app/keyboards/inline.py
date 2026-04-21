@@ -375,7 +375,6 @@ def buy_rub_payment_keyboard(
 
 def buy_stars_payment_keyboard(
     *,
-    order_id: str,
     months: int,
     back_to: str,
 ) -> InlineKeyboardMarkup:
@@ -384,7 +383,7 @@ def buy_stars_payment_keyboard(
             [
                 InlineKeyboardButton(
                     text="⭐️ Оплатить звёздами",
-                    callback_data=f"buy_stars_pay:{order_id}:{months}:{back_to}",
+                    callback_data=f"buy_stars_pay:{months}:{back_to}",
                 ),
             ],
             [

@@ -44,7 +44,6 @@ async def open_buy_stars_payment_screen(
     await apply_buy_stars_payment_screen(
         query,
         bot,
-        order_id=order_id,
         months=months,
         back_to=back_to,
     )

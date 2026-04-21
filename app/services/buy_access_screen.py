@@ -349,7 +349,6 @@ async def apply_buy_stars_payment_screen(
     query: CallbackQuery,
     bot: Bot,
     *,
-    order_id: str,
     months: int,
     back_to: str,
 ) -> None:
@@ -359,7 +358,7 @@ async def apply_buy_stars_payment_screen(
 
     amount = texts.stars_tariff_amount(months)
     caption = texts.buy_stars_payment_caption(amount)
-    kb = buy_stars_payment_keyboard(order_id=order_id, months=months, back_to=back_to)
+    kb = buy_stars_payment_keyboard(months=months, back_to=back_to)
     path = (
         BUY_RUB_PAYMENT_IMAGE_PATH
         if BUY_RUB_PAYMENT_IMAGE_PATH.is_file()
