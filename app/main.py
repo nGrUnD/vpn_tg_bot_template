@@ -97,7 +97,9 @@ async def _run() -> None:
     )
     dp = Dispatcher()
     dp.update.middleware(ThreexuiMiddleware(threexui_runtime))
-    dp.update.middleware(ChannelSubscriptionMiddleware())
+    channel_guard = ChannelSubscriptionMiddleware()
+    dp.message.middleware(channel_guard)
+    dp.callback_query.middleware(channel_guard)
     dp.include_router(root_router)
 
     if settings.wata_api_configured() and not settings.wata_webhook_server_enabled():
