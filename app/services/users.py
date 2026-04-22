@@ -87,6 +87,18 @@ async def clear_channel_verified(telegram_id: int) -> None:
         )
 
 
+async def is_channel_verified(telegram_id: int) -> bool:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row: Optional[asyncpg.Record] = await conn.fetchrow(
+            "SELECT channel_verified_at FROM users WHERE telegram_id = $1",
+            telegram_id,
+        )
+        if row is None:
+            return False
+        return row["channel_verified_at"] is not None
+
+
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 

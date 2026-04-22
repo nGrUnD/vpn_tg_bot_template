@@ -10,7 +10,7 @@ from app import texts
 from app.callback_safe import safe_answer
 from app.keyboards.inline import subscription_keyboard
 from app.services.channel_subscription import is_user_subscribed_to_channel
-from app.services.users import clear_channel_verified, ensure_user, mark_channel_verified
+from app.services.users import clear_channel_verified, ensure_user, is_channel_verified
 
 
 class ChannelSubscriptionMiddleware(BaseMiddleware):
@@ -47,20 +47,24 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
             return await handler(message, data)
 
         await ensure_user(message.from_user)
+        if not await is_channel_verified(message.from_user.id):
+            await message.answer(
+                texts.START_NEED_CHANNEL,
+                reply_markup=subscription_keyboard(),
+            )
+            return None
         allowed = await self._is_subscribed(bot, message.from_user.id)
         if allowed is None:
             await message.answer(texts.CHECK_SUBSCRIPTION_FAILED_ALERT)
             return None
-        if allowed:
-            await mark_channel_verified(message.from_user.id)
-            return await handler(message, data)
-
-        await clear_channel_verified(message.from_user.id)
-        await message.answer(
-            texts.START_NEED_CHANNEL,
-            reply_markup=subscription_keyboard(),
-        )
-        return None
+        if not allowed:
+            await clear_channel_verified(message.from_user.id)
+            await message.answer(
+                texts.START_NEED_CHANNEL,
+                reply_markup=subscription_keyboard(),
+            )
+            return None
+        return await handler(message, data)
 
     async def _handle_callback(
         self,
@@ -75,25 +79,37 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
             return await handler(query, data)
 
         await ensure_user(query.from_user)
+        if not await is_channel_verified(query.from_user.id):
+            if query.message is not None:
+                try:
+                    await query.message.answer(
+                        texts.START_NEED_CHANNEL,
+                        reply_markup=subscription_keyboard(),
+                    )
+                except TelegramBadRequest:
+                    pass
+            try:
+                await safe_answer(query)
+            except TelegramBadRequest:
+                pass
+            return None
         allowed = await self._is_subscribed(bot, query.from_user.id)
         if allowed is None:
             await safe_answer(query, texts.CHECK_SUBSCRIPTION_FAILED_ALERT, show_alert=True)
             return None
-        if allowed:
-            await mark_channel_verified(query.from_user.id)
-            return await handler(query, data)
-
-        await clear_channel_verified(query.from_user.id)
-        await safe_answer(query, texts.NOT_SUBSCRIBED_ALERT, show_alert=True)
-        if query.message is not None:
-            try:
-                await query.message.answer(
-                    texts.START_NEED_CHANNEL,
-                    reply_markup=subscription_keyboard(),
-                )
-            except TelegramBadRequest:
-                pass
-        return None
+        if not allowed:
+            await clear_channel_verified(query.from_user.id)
+            await safe_answer(query, texts.NOT_SUBSCRIBED_ALERT, show_alert=True)
+            if query.message is not None:
+                try:
+                    await query.message.answer(
+                        texts.START_NEED_CHANNEL,
+                        reply_markup=subscription_keyboard(),
+                    )
+                except TelegramBadRequest:
+                    pass
+            return None
+        return await handler(query, data)
 
     async def _is_subscribed(self, bot: Bot, telegram_id: int) -> bool | None:
         try:
