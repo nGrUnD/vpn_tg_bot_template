@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from decimal import Decimal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -167,6 +168,44 @@ class Settings(BaseSettings):
     iphone_instruction_url: str | None = Field(default=None, validation_alias="IPHONE_INSTRUCTION_URL")
     android_instruction_url: str | None = Field(default=None, validation_alias="ANDROID_INSTRUCTION_URL")
 
+    payment_rub_checkout_url: str | None = Field(default=None, validation_alias="PAYMENT_RUB_CHECKOUT_URL")
+
+    wata_access_token: str | None = Field(default=None, validation_alias="WATA_ACCESS_TOKEN")
+    wata_api_base: str = Field(
+        default="https://api.wata.pro/api/h2h",
+        validation_alias="WATA_API_BASE",
+    )
+    wata_webhook_path: str = Field(default="/webhooks/wata", validation_alias="WATA_WEBHOOK_PATH")
+    wata_webhook_verify_signature: bool = Field(default=True, validation_alias="WATA_WEBHOOK_VERIFY_SIGNATURE")
+    http_webhook_host: str = Field(default="0.0.0.0", validation_alias="HTTP_WEBHOOK_HOST")
+    http_webhook_port: int = Field(default=0, ge=0, le=65535, validation_alias="HTTP_WEBHOOK_PORT")
+
+    cryptopay_api_token: str | None = Field(default=None, validation_alias="CRYPTOPAY_API_TOKEN")
+    cryptopay_testnet: bool = Field(default=False, validation_alias="CRYPTOPAY_TESTNET")
+    cryptopay_api_base: str | None = Field(default=None, validation_alias="CRYPTOPAY_API_BASE")
+    cryptopay_webhook_path: str = Field(default="/webhooks/cryptobot", validation_alias="CRYPTOPAY_WEBHOOK_PATH")
+    cryptopay_webhook_verify_signature: bool = Field(default=True, validation_alias="CRYPTOPAY_WEBHOOK_VERIFY_SIGNATURE")
+    cryptopay_webhook_public_url: str | None = Field(default=None, validation_alias="CRYPTOPAY_WEBHOOK_PUBLIC_URL")
+    cryptopay_rub_per_usdt: Decimal = Field(
+        default=Decimal("83"),
+        ge=Decimal("0.01"),
+        validation_alias="CRYPTOPAY_RUB_PER_USDT",
+    )
+
+    @field_validator("cryptopay_rub_per_usdt", mode="before")
+    @classmethod
+    def parse_cryptopay_rub_per_usdt(cls, v: object) -> Decimal:
+        if v is None or v == "":
+            return Decimal("83")
+        if isinstance(v, Decimal):
+            return v
+        return Decimal(str(v).strip().replace(",", "."))
+
+    @field_validator("wata_webhook_verify_signature", mode="before")
+    @classmethod
+    def coerce_wata_webhook_verify_signature(cls, v: object) -> bool:
+        return _parse_bool(v, default=True)
+
     @field_validator("database_ssl_require", mode="before")
     @classmethod
     def coerce_database_ssl_require(cls, v: object) -> bool:
@@ -190,6 +229,11 @@ class Settings(BaseSettings):
         "connect_page_android_url",
         "iphone_instruction_url",
         "android_instruction_url",
+        "payment_rub_checkout_url",
+        "wata_access_token",
+        "cryptopay_api_token",
+        "cryptopay_api_base",
+        "cryptopay_webhook_public_url",
         mode="before",
     )
     @classmethod
@@ -198,6 +242,49 @@ class Settings(BaseSettings):
             return None
         s = str(v).strip()
         return s if s else None
+
+    @field_validator("wata_api_base", mode="before")
+    @classmethod
+    def normalize_wata_api_base(cls, v: object) -> str:
+        s = (str(v).strip() if v is not None else "").strip().rstrip("/")
+        return s or "https://api.wata.pro/api/h2h"
+
+    @field_validator("wata_webhook_path", mode="before")
+    @classmethod
+    def normalize_webhook_path(cls, v: object) -> str:
+        s = (str(v) if v is not None else "").strip() or "/webhooks/wata"
+        return s if s.startswith("/") else f"/{s}"
+
+    @field_validator("cryptopay_webhook_path", mode="before")
+    @classmethod
+    def normalize_cryptopay_webhook_path(cls, v: object) -> str:
+        s = (str(v) if v is not None else "").strip() or "/webhooks/cryptobot"
+        return s if s.startswith("/") else f"/{s}"
+
+    @field_validator("cryptopay_webhook_verify_signature", mode="before")
+    @classmethod
+    def coerce_cryptopay_webhook_verify(cls, v: object) -> bool:
+        return _parse_bool(v, default=True)
+
+    def wata_api_configured(self) -> bool:
+        return bool((self.wata_access_token or "").strip())
+
+    def cryptopay_api_configured(self) -> bool:
+        return bool((self.cryptopay_api_token or "").strip())
+
+    def cryptopay_api_root(self) -> str:
+        if self.cryptopay_testnet:
+            return "https://testnet-pay.crypt.bot"
+        s = (self.cryptopay_api_base or "").strip().rstrip("/")
+        return s or "https://pay.crypt.bot"
+
+    def wata_webhook_server_enabled(self) -> bool:
+        return self.wata_api_configured() and int(self.http_webhook_port) > 0
+
+    def payment_webhook_server_enabled(self) -> bool:
+        return int(self.http_webhook_port) > 0 and (
+            self.wata_api_configured() or self.cryptopay_api_configured()
+        )
 
     def threexui_backend_configs(self) -> dict[str, ThreeXUIConfig]:
         raw_json = (self.threexui_backends_json or "").strip()
