@@ -1,6 +1,5 @@
 import json
 from dataclasses import dataclass
-from decimal import Decimal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -17,9 +16,34 @@ class ThreeXUIConfig:
     vless_server: str | None = None
     vless_port: int | None = None
     inbound_id: int = 1
+    inbound_ids: tuple[int, ...] | None = None
     weight: int = 1
     enabled: bool = True
     title: str | None = None
+
+
+def _parse_inbound_ids(value: object) -> tuple[int, ...] | None:
+    if value is None:
+        return None
+    raw_items: list[object]
+    if isinstance(value, (list, tuple)):
+        raw_items = list(value)
+    elif isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return None
+        raw_items = [part.strip() for part in s.split(",") if part.strip()]
+    else:
+        return None
+    ids: list[int] = []
+    for item in raw_items:
+        try:
+            i = int(item)
+            if i > 0:
+                ids.append(i)
+        except (TypeError, ValueError):
+            continue
+    return tuple(ids) if ids else None
 
 
 def _parse_bool(value: object, default: bool = True) -> bool:
@@ -48,6 +72,7 @@ def _backend_from_mapping(data: dict, fallback_key: str) -> ThreeXUIConfig:
         vless_port = int(vless_port_raw) if vless_port_raw not in (None, "") else None
     except (TypeError, ValueError):
         vless_port = None
+    inbound_ids = _parse_inbound_ids(data.get("inbound_ids", data.get("inboundIds")))
     inbound_raw = data.get("inbound_id", data.get("inboundId", 1))
     try:
         inbound_id = max(int(inbound_raw), 1)
@@ -67,6 +92,7 @@ def _backend_from_mapping(data: dict, fallback_key: str) -> ThreeXUIConfig:
         vless_server=vless_server,
         vless_port=vless_port,
         inbound_id=inbound_id,
+        inbound_ids=inbound_ids,
         enabled=_parse_bool(data.get("enabled"), True),
         weight=weight,
     )
@@ -133,54 +159,13 @@ class Settings(BaseSettings):
     threexui_vless_server: str | None = Field(default=None, validation_alias="THREEXUI_VLESS_SERVER")
     threexui_vless_port: int | None = Field(default=None, validation_alias="THREEXUI_VLESS_PORT")
     threexui_inbound_id: int = Field(default=1, ge=1, validation_alias="THREEXUI_INBOUND_ID")
+    threexui_inbound_ids: str | None = Field(default=None, validation_alias="THREEXUI_INBOUND_IDS")
 
     connect_page_windows_url: str | None = Field(default=None, validation_alias="CONNECT_PAGE_WINDOWS_URL")
     connect_page_iphone_url: str | None = Field(default=None, validation_alias="CONNECT_PAGE_IPHONE_URL")
     connect_page_android_url: str | None = Field(default=None, validation_alias="CONNECT_PAGE_ANDROID_URL")
     iphone_instruction_url: str | None = Field(default=None, validation_alias="IPHONE_INSTRUCTION_URL")
     android_instruction_url: str | None = Field(default=None, validation_alias="ANDROID_INSTRUCTION_URL")
-
-    # Статическая ссылка на оплату (если нет WATA API — как раньше; при настроенном WATA токене не используется)
-    payment_rub_checkout_url: str | None = Field(default=None, validation_alias="PAYMENT_RUB_CHECKOUT_URL")
-
-    # WATA H2H: https://wata.pro/api — платёжные ссылки + webhook
-    wata_access_token: str | None = Field(default=None, validation_alias="WATA_ACCESS_TOKEN")
-    wata_api_base: str = Field(
-        default="https://api.wata.pro/api/h2h",
-        validation_alias="WATA_API_BASE",
-    )
-    wata_webhook_path: str = Field(default="/webhooks/wata", validation_alias="WATA_WEBHOOK_PATH")
-    wata_webhook_verify_signature: bool = Field(default=True, validation_alias="WATA_WEBHOOK_VERIFY_SIGNATURE")
-    http_webhook_host: str = Field(default="0.0.0.0", validation_alias="HTTP_WEBHOOK_HOST")
-    http_webhook_port: int = Field(default=0, ge=0, le=65535, validation_alias="HTTP_WEBHOOK_PORT")
-
-    # Crypto Pay (@CryptoBot): https://help.send.tg/en/articles/10279948-crypto-pay-api
-    cryptopay_api_token: str | None = Field(default=None, validation_alias="CRYPTOPAY_API_TOKEN")
-    cryptopay_testnet: bool = Field(default=False, validation_alias="CRYPTOPAY_TESTNET")
-    cryptopay_api_base: str | None = Field(default=None, validation_alias="CRYPTOPAY_API_BASE")
-    cryptopay_webhook_path: str = Field(default="/webhooks/cryptobot", validation_alias="CRYPTOPAY_WEBHOOK_PATH")
-    cryptopay_webhook_verify_signature: bool = Field(default=True, validation_alias="CRYPTOPAY_WEBHOOK_VERIFY_SIGNATURE")
-    cryptopay_webhook_public_url: str | None = Field(default=None, validation_alias="CRYPTOPAY_WEBHOOK_PUBLIC_URL")
-    # Резерв, если API курса недоступен (см. app/services/usdt_rub_rate.py — CoinGecko)
-    cryptopay_rub_per_usdt: Decimal = Field(
-        default=Decimal("83"),
-        ge=Decimal("0.01"),
-        validation_alias="CRYPTOPAY_RUB_PER_USDT",
-    )
-
-    @field_validator("cryptopay_rub_per_usdt", mode="before")
-    @classmethod
-    def parse_cryptopay_rub_per_usdt(cls, v: object) -> Decimal:
-        if v is None or v == "":
-            return Decimal("83")
-        if isinstance(v, Decimal):
-            return v
-        return Decimal(str(v).strip().replace(",", "."))
-
-    @field_validator("wata_webhook_verify_signature", mode="before")
-    @classmethod
-    def coerce_wata_webhook_verify_signature(cls, v: object) -> bool:
-        return _parse_bool(v, default=True)
 
     @field_validator("database_ssl_require", mode="before")
     @classmethod
@@ -205,11 +190,6 @@ class Settings(BaseSettings):
         "connect_page_android_url",
         "iphone_instruction_url",
         "android_instruction_url",
-        "payment_rub_checkout_url",
-        "wata_access_token",
-        "cryptopay_api_token",
-        "cryptopay_api_base",
-        "cryptopay_webhook_public_url",
         mode="before",
     )
     @classmethod
@@ -218,50 +198,6 @@ class Settings(BaseSettings):
             return None
         s = str(v).strip()
         return s if s else None
-
-    @field_validator("wata_api_base", mode="before")
-    @classmethod
-    def normalize_wata_api_base(cls, v: object) -> str:
-        s = (str(v).strip() if v is not None else "").strip().rstrip("/")
-        return s or "https://api.wata.pro/api/h2h"
-
-    @field_validator("wata_webhook_path", mode="before")
-    @classmethod
-    def normalize_webhook_path(cls, v: object) -> str:
-        s = (str(v) if v is not None else "").strip() or "/webhooks/wata"
-        return s if s.startswith("/") else f"/{s}"
-
-    @field_validator("cryptopay_webhook_path", mode="before")
-    @classmethod
-    def normalize_cryptopay_webhook_path(cls, v: object) -> str:
-        s = (str(v) if v is not None else "").strip() or "/webhooks/cryptobot"
-        return s if s.startswith("/") else f"/{s}"
-
-    @field_validator("cryptopay_webhook_verify_signature", mode="before")
-    @classmethod
-    def coerce_cryptopay_webhook_verify(cls, v: object) -> bool:
-        return _parse_bool(v, default=True)
-
-    def wata_api_configured(self) -> bool:
-        return bool((self.wata_access_token or "").strip())
-
-    def cryptopay_api_configured(self) -> bool:
-        return bool((self.cryptopay_api_token or "").strip())
-
-    def cryptopay_api_root(self) -> str:
-        if self.cryptopay_testnet:
-            return "https://testnet-pay.crypt.bot"
-        s = (self.cryptopay_api_base or "").strip().rstrip("/")
-        return s or "https://pay.crypt.bot"
-
-    def wata_webhook_server_enabled(self) -> bool:
-        return self.wata_api_configured() and int(self.http_webhook_port) > 0
-
-    def payment_webhook_server_enabled(self) -> bool:
-        """HTTP-сервер для приёма webhook (WATA и/или Crypto Pay)."""
-        return int(self.http_webhook_port) > 0 and (
-            self.wata_api_configured() or self.cryptopay_api_configured()
-        )
 
     def threexui_backend_configs(self) -> dict[str, ThreeXUIConfig]:
         raw_json = (self.threexui_backends_json or "").strip()
@@ -284,6 +220,7 @@ class Settings(BaseSettings):
             vless_server=vs,
             vless_port=self.threexui_vless_port,
             inbound_id=int(self.threexui_inbound_id),
+            inbound_ids=_parse_inbound_ids(self.threexui_inbound_ids),
             weight=1,
             enabled=True,
         )

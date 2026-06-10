@@ -16,12 +16,12 @@ from app.services.threexui_backends import (
     pick_backend_for_new_trial,
     threexui_client_for_backend,
 )
+from app.threexui_client import ThreeXUIClient
 from app.services.trial_connections import apply_trial_connections_screen
 from app.services.users import (
     _utcnow,
     clear_trial_in_db,
     ensure_user,
-    get_active_access,
     get_trial_panel_sync_fields,
     get_trial_subscription_url,
     save_trial_access,
@@ -46,20 +46,6 @@ async def run_trial_activation_flow(
     await ensure_user(query.from_user)
     tid = query.from_user.id
 
-    active_access = await get_active_access(tid)
-    if active_access is not None and active_access.kind == "paid":
-        await apply_trial_connections_screen(
-            query,
-            bot,
-            back_to=back_to,
-            caption_html=texts.active_connections_caption(
-                access_kind=active_access.kind,
-                description=f"Доступ активен до {texts.format_ru_date(active_access.expires_at)}.",
-                subscription_url=active_access.subscription_url,
-            ),
-        )
-        return
-
     if await trial_still_active(tid):
         skip_to_create = False
         if threexui_runtime.has_backends:
@@ -78,7 +64,10 @@ async def run_trial_activation_flow(
                     await clear_trial_in_db(tid)
                     skip_to_create = True
                 else:
-                    on_panel = await panel.trial_client_uuid_seen_on_panel(uuid_v)
+                    on_panel = await panel.trial_client_uuid_seen_on_panel(
+                        uuid_v,
+                        client_email=ThreeXUIClient.client_email_for_telegram(tid),
+                    )
                     if not on_panel:
                         logger.info(
                             "trial: UUID %s не найден на панели — сброс БД, пересоздание",

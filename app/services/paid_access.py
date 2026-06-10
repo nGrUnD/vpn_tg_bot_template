@@ -10,6 +10,7 @@ from app.services.threexui_backends import (
     ThreexuiRuntime,
     pick_backend_for_new_access,
 )
+from app.threexui_client import ThreeXUIClient
 from app.services.users import (
     clear_trial_in_db,
     get_paid_access_row,
@@ -47,7 +48,13 @@ def _add_months(base: datetime, months: int) -> datetime:
     return base.replace(year=year, month=month, day=day)
 
 
-async def _delete_client_best_effort(runtime: ThreexuiRuntime, client_uuid: str | None, backend_key: str | None) -> None:
+async def _delete_client_best_effort(
+    runtime: ThreexuiRuntime,
+    client_uuid: str | None,
+    backend_key: str | None,
+    *,
+    telegram_id: int,
+) -> None:
     uuid_v = str(client_uuid or "").strip()
     if not uuid_v:
         return
@@ -55,8 +62,12 @@ async def _delete_client_best_effort(runtime: ThreexuiRuntime, client_uuid: str 
     panel = runtime.registry.get(key)
     if panel is None:
         return
+    client_email = ThreeXUIClient.client_email_for_telegram(telegram_id)
     try:
-        await panel.delete_client_uuid_from_all_inbounds(uuid_v)
+        await panel.delete_client_uuid_from_all_inbounds(
+            uuid_v,
+            client_email=client_email,
+        )
     except Exception:
         logger.exception("3x-ui: delete old client failed backend=%s uuid=%s", key, uuid_v)
 
@@ -163,6 +174,7 @@ async def ensure_paid_access_for_order(
             runtime,
             old_paid["paid_client_uuid"],
             old_paid["paid_backend_key"],
+            telegram_id=telegram_id,
         )
 
     if old_trial is not None:
@@ -170,6 +182,7 @@ async def ensure_paid_access_for_order(
             runtime,
             old_trial["trial_client_uuid"],
             old_trial["trial_backend_key"],
+            telegram_id=telegram_id,
         )
         await clear_trial_in_db(telegram_id)
 

@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timezone
 
 from app.config import settings
+from app.threexui_client import ThreeXUIClient
 from app.services.threexui_backends import (
     ThreexuiRuntime,
     pick_alternate_backend_key,
@@ -67,7 +68,11 @@ async def reissue_trial_cross_panel(telegram_id: int, runtime: ThreexuiRuntime) 
         return False, "Запасная панель VPN недоступна."
 
     expiry_ts_ms = _expires_ms_from_row(expires_at)
-    snapshot = await old_client.collect_client_quota_snapshot(old_uuid)
+    client_email = ThreeXUIClient.client_email_for_telegram(telegram_id)
+    snapshot = await old_client.collect_client_quota_snapshot(
+        old_uuid,
+        client_email=client_email,
+    )
     total_bytes = _new_total_bytes_from_snapshot(snapshot)
 
     try:
@@ -80,7 +85,10 @@ async def reissue_trial_cross_panel(telegram_id: int, runtime: ThreexuiRuntime) 
         logger.exception("reissue: create on new panel failed user=%s", telegram_id)
         return False, str(e).strip() or "ошибка панели"
 
-    await old_client.delete_client_uuid_from_all_inbounds(old_uuid)
+    await old_client.delete_client_uuid_from_all_inbounds(
+        old_uuid,
+        client_email=client_email,
+    )
 
     await save_trial_access(
         telegram_id,

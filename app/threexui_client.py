@@ -4,7 +4,6 @@ import base64
 import binascii
 import json
 import logging
-import re
 import secrets
 import string
 import time
@@ -21,9 +20,6 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_IP_LIMIT = 3
 
-# Протоколы, для которых умеем собирать объект клиента под API 3x-ui (остальные — пропуск с предупреждением).
-_SUPPORTED_ADD_CLIENT_PROTOCOLS = frozenset({"vless", "vmess", "trojan"})
-
 
 @dataclass
 class ThreeXUIClientInfo:
@@ -34,6 +30,7 @@ class ThreeXUIClientInfo:
     sub_id: Optional[str] = None
     subscription_url: Optional[str] = None
     subscription_json_url: Optional[str] = None
+    client_email: Optional[str] = None
     provisioned_inbound_ids: list[int] = field(default_factory=list)
     failed_inbounds: list[tuple[int, str]] = field(default_factory=list)
 
@@ -43,6 +40,7 @@ class ThreeXUIClient:
         self._config = config
         self._client = httpx.AsyncClient(base_url=config.base_url, timeout=30.0)
         self._auth_cookies: dict[str, str] = {}
+        self._use_new_clients_api: bool | None = None
 
     async def _ensure_login(self) -> None:
         if self._auth_cookies:
@@ -60,74 +58,6 @@ class ThreeXUIClient:
     def _generate_sub_id(self, length: int = 16) -> str:
         alphabet = string.ascii_lowercase + string.digits
         return "".join(secrets.choice(alphabet) for _ in range(max(length, 8)))
-
-    @staticmethod
-    def _inbound_protocol(inbound_obj: dict[str, Any]) -> str:
-        return str(inbound_obj.get("protocol") or inbound_obj.get("Protocol") or "").strip().lower()
-
-    @staticmethod
-    def _pretty_inbound_client_email(remark: str, inbound_id: int, sub_tag: str) -> str:
-        """
-        Имя клиента в подписке / hApp: коротко и читаемо, уникальность — суффикс из sub_tag.
-        """
-        raw = (remark or "").strip()
-        if not raw:
-            raw = f"Сервер {inbound_id}"
-        raw = re.sub(r"\s+", " ", raw)
-        if len(raw) > 26:
-            raw = raw[:25].rstrip() + "…"
-        suffix = sub_tag[:10] if len(sub_tag) >= 8 else sub_tag
-        label = f"Raccster · {raw} · {suffix}"
-        if len(label) > 64:
-            label = label[:63] + "…"
-        return label
-
-    def _client_row_for_protocol(
-        self,
-        protocol: str,
-        *,
-        client_uuid: str,
-        inbound_email: str,
-        telegram_id: int,
-        sub_id: str,
-        support_comment: str,
-        expiry_ts_ms: int,
-        total_bytes: int,
-        limit_ip: int,
-    ) -> dict[str, Any] | None:
-        """Один клиент для addClient; для trojan обязателен непустой password (иначе 3x-ui: empty client ID)."""
-        proto = (protocol or "").strip().lower()
-        if proto not in _SUPPORTED_ADD_CLIENT_PROTOCOLS:
-            return None
-        row: dict[str, Any] = {
-            "id": client_uuid,
-            "security": "auto",
-            "password": "",
-            "flow": "",
-            "email": inbound_email,
-            "limitIp": max(int(limit_ip), 0),
-            "totalGB": max(int(total_bytes), 0),
-            "expiryTime": int(expiry_ts_ms),
-            "enable": True,
-            "tgId": int(telegram_id),
-            "subId": sub_id,
-            "comment": support_comment,
-            "reset": 0,
-        }
-        if proto == "trojan":
-            row["password"] = client_uuid
-        return row
-
-    @staticmethod
-    def _client_row_matches_uuid(row: dict[str, Any], client_uuid: str) -> bool:
-        cu = str(client_uuid).strip().lower()
-        if not cu:
-            return False
-        rid = str(row.get("id") or "").strip().lower()
-        if rid == cu:
-            return True
-        rp = str(row.get("password") or "").strip().lower()
-        return rp == cu
 
     def _join_url_with_id(self, base: str, item_id: str) -> str:
         return base if not item_id else (base if base.endswith("/") else base + "/") + item_id
@@ -238,58 +168,151 @@ class ThreeXUIClient:
                 continue
         return ids
 
-    async def create_client_all_inbounds(
+
+    def _mark_legacy_client_api(self) -> None:
+        self._use_new_clients_api = False
+
+    async def _probe_new_client_api(self) -> bool:
+        if self._use_new_clients_api is not None:
+            return self._use_new_clients_api
+        await self._ensure_login()
+        try:
+            resp = await self._client.get(
+                "/panel/api/clients/list",
+                cookies=self._auth_cookies,
+            )
+            resp.raise_for_status()
+            body = resp.json()
+            is_new = isinstance(body, dict) and body.get("success") is not False
+        except Exception:
+            is_new = False
+        self._use_new_clients_api = is_new
+        if is_new:
+            logger.info("3x-ui: API clients/* (единый клиент на несколько inbound)")
+        return is_new
+
+    async def _resolve_target_inbound_ids(self) -> list[int]:
+        configured = getattr(self._config, "inbound_ids", None)
+        if configured:
+            return [int(i) for i in configured if int(i) > 0]
+        ids = await self.list_inbound_ids(only_enabled=True)
+        if ids:
+            return ids
+        return [self._config.inbound_id]
+
+    @staticmethod
+    def client_email_for_telegram(telegram_id: int, *, label: str = "trial") -> str:
+        return f"tg_{telegram_id}_{label}"
+
+    def _build_client_payload(
         self,
-        telegram_id: int,
         *,
+        telegram_id: int,
+        client_uuid: str,
+        client_email: str,
+        sub_id: str,
         expiry_ts_ms: int,
         total_bytes: int,
-        limit_ip: int = DEFAULT_IP_LIMIT,
-    ) -> ThreeXUIClientInfo:
-        """
-        Новый клиент на всех inbounds: один UUID, один subId, уникальный email на inbound.
-        total_bytes: 0 = безлимит (как в панели 3x-ui).
-        """
-        await self._ensure_login()
+        limit_ip: int,
+    ) -> dict[str, Any]:
+        return {
+            "id": client_uuid,
+            "security": "auto",
+            "password": "",
+            "flow": "",
+            "email": client_email,
+            "limitIp": max(int(limit_ip), 0),
+            "totalGB": max(int(total_bytes), 0),
+            "expiryTime": int(expiry_ts_ms),
+            "enable": True,
+            "tgId": int(telegram_id),
+            "subId": sub_id,
+            "comment": client_email,
+            "reset": 0,
+        }
 
-        inbound_ids = await self.list_inbound_ids(only_enabled=True)
-        if not inbound_ids:
-            inbound_ids = [self._config.inbound_id]
+    @staticmethod
+    def _api_success(body: Any) -> bool:
+        return not (isinstance(body, dict) and body.get("success") is False)
 
-        client_uuid = str(uuid.uuid4())
-        sub_id = self._generate_sub_id()
+    @staticmethod
+    def _api_error_message(body: Any, fallback: str = "success=false") -> str:
+        if isinstance(body, dict):
+            return str(body.get("msg") or body.get("message") or fallback).strip()
+        return fallback
+
+    async def _create_client_via_clients_add(
+        self,
+        client_obj: dict[str, Any],
+        inbound_ids: list[int],
+    ) -> tuple[list[int], list[tuple[int, str]]]:
+        resp = await self._client.post(
+            "/panel/api/clients/add",
+            json={"client": client_obj, "inboundIds": inbound_ids},
+            cookies=self._auth_cookies,
+        )
+        if resp.status_code == 404:
+            self._mark_legacy_client_api()
+            raise RuntimeError("clients/add not found")
+        resp.raise_for_status()
+        body = resp.json()
+        if not self._api_success(body):
+            raise RuntimeError(self._api_error_message(body, "clients/add failed"))
+        return inbound_ids, []
+
+    async def _create_client_via_add_client_inbounds(
+        self,
+        client_obj: dict[str, Any],
+        inbound_ids: list[int],
+    ) -> tuple[list[int], list[tuple[int, str]]] | None:
+        settings_str = json.dumps({"clients": [client_obj]}, ensure_ascii=False, separators=(",", ":"))
+        try:
+            resp = await self._client.post(
+                "/panel/api/inbounds/addClientInbounds",
+                json={"settings": settings_str, "inboundIds": inbound_ids},
+                cookies=self._auth_cookies,
+            )
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+            body = resp.json()
+            if not self._api_success(body):
+                raise RuntimeError(self._api_error_message(body, "addClientInbounds failed"))
+            return inbound_ids, []
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return None
+            raise
+
+    async def _create_client_via_legacy_per_inbound(
+        self,
+        *,
+        telegram_id: int,
+        client_uuid: str,
+        sub_id: str,
+        expiry_ts_ms: int,
+        total_bytes: int,
+        limit_ip: int,
+        inbound_ids: list[int],
+        logical_label: str,
+    ) -> tuple[list[int], list[tuple[int, str]]]:
+        """Старые панели: отдельный email на каждый inbound."""
         sub_tag = sub_id[:16] if len(sub_id) >= 8 else sub_id
-        display_label = "Raccster VPN"
-        support_comment = f"tg:{telegram_id}"
         tb = max(int(total_bytes), 0)
-
         ok: list[int] = []
         failed: list[tuple[int, str]] = []
         for iid in inbound_ids:
-            inbound_obj = await self._get_inbound(iid)
-            if not inbound_obj:
-                failed.append((iid, "inbound not found"))
-                logger.warning("3x-ui addClient inbound=%s: inbound not found", iid)
-                continue
-            protocol = self._inbound_protocol(inbound_obj)
-            remark = str(inbound_obj.get("remark") or "").strip()
-            inbound_email = self._pretty_inbound_client_email(remark, iid, sub_tag)
-            client_obj = self._client_row_for_protocol(
-                protocol,
-                client_uuid=client_uuid,
-                inbound_email=inbound_email,
+            inbound_email = f"tg_{telegram_id}_i{iid}_{sub_tag}"
+            client_obj = self._build_client_payload(
                 telegram_id=telegram_id,
+                client_uuid=client_uuid,
+                client_email=inbound_email,
                 sub_id=sub_id,
-                support_comment=support_comment,
                 expiry_ts_ms=expiry_ts_ms,
                 total_bytes=tb,
                 limit_ip=limit_ip,
             )
-            if client_obj is None:
-                msg = f"протокол не поддерживается: {protocol or '?'}"
-                failed.append((iid, msg))
-                logger.warning("3x-ui addClient inbound=%s: %s", iid, msg)
-                continue
+            client_obj["comment"] = logical_label
             settings_str = json.dumps({"clients": [client_obj]}, ensure_ascii=False, separators=(",", ":"))
             try:
                 resp = await self._client.post(
@@ -299,15 +322,118 @@ class ThreeXUIClient:
                 )
                 resp.raise_for_status()
                 body = resp.json()
-                if isinstance(body, dict) and body.get("success") is False:
-                    msg = str(body.get("msg") or body.get("message") or "success=false").strip()
+                if not self._api_success(body):
+                    msg = self._api_error_message(body)
                     failed.append((iid, msg))
                     logger.warning("3x-ui addClient inbound=%s: %s", iid, msg)
                 else:
                     ok.append(iid)
-            except Exception as e:
-                failed.append((iid, str(e)))
+            except Exception as exc:
+                failed.append((iid, str(exc)))
                 logger.exception("3x-ui addClient inbound=%s failed", iid)
+        return ok, failed
+
+    async def _get_client_traffics_by_email(self, email: str) -> dict[str, Any] | None:
+        safe_email = urllib.parse.quote(email, safe="")
+        for path in (
+            f"/panel/api/clients/traffic/{safe_email}",
+            f"/panel/api/inbounds/getClientTraffics/{safe_email}",
+        ):
+            try:
+                resp = await self._client.get(path, cookies=self._auth_cookies)
+                if resp.status_code == 404:
+                    continue
+                resp.raise_for_status()
+                body = resp.json()
+                if isinstance(body, dict) and body.get("obj") is not None:
+                    obj = body["obj"]
+                    return obj if isinstance(obj, dict) else None
+                if isinstance(body, dict) and body.get("email"):
+                    return body
+            except Exception:
+                logger.debug("get client traffic %s via %s failed", email, path, exc_info=True)
+        return None
+
+    async def _delete_client_by_email(self, client_email: str) -> bool:
+        safe_email = urllib.parse.quote(client_email, safe="")
+        try:
+            resp = await self._client.post(
+                f"/panel/api/clients/del/{safe_email}",
+                cookies=self._auth_cookies,
+            )
+            if resp.status_code == 404:
+                self._mark_legacy_client_api()
+                return False
+            resp.raise_for_status()
+            body = resp.json()
+            if isinstance(body, dict) and body.get("success") is False:
+                msg = self._api_error_message(body).lower()
+                if "not found" in msg or "не найден" in msg:
+                    return True
+                logger.info("3x-ui clients/del %s: %s", client_email, msg)
+            return True
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                self._mark_legacy_client_api()
+                return False
+            raise
+
+
+    async def create_client_all_inbounds(
+        self,
+        telegram_id: int,
+        *,
+        expiry_ts_ms: int,
+        total_bytes: int,
+        limit_ip: int = DEFAULT_IP_LIMIT,
+        client_label: str = "trial",
+    ) -> ThreeXUIClientInfo:
+        """
+        Один клиент (UUID, email, subId) на несколько inbound одной панели.
+        На панелях 3x-ui v3.1.0+ — POST /panel/api/clients/add с inboundIds.
+        """
+        await self._ensure_login()
+
+        inbound_ids = await self._resolve_target_inbound_ids()
+        client_uuid = str(uuid.uuid4())
+        sub_id = self._generate_sub_id()
+        client_email = self.client_email_for_telegram(telegram_id, label=client_label)
+        logical_label = client_email
+        client_obj = self._build_client_payload(
+            telegram_id=telegram_id,
+            client_uuid=client_uuid,
+            client_email=client_email,
+            sub_id=sub_id,
+            expiry_ts_ms=expiry_ts_ms,
+            total_bytes=total_bytes,
+            limit_ip=limit_ip,
+        )
+
+        ok: list[int] = []
+        failed: list[tuple[int, str]] = []
+        if await self._probe_new_client_api():
+            try:
+                ok, failed = await self._create_client_via_clients_add(client_obj, inbound_ids)
+            except RuntimeError as exc:
+                if "not found" in str(exc).lower():
+                    ok, failed = [], [(0, str(exc))]
+                else:
+                    raise
+        if not ok:
+            created = await self._create_client_via_add_client_inbounds(client_obj, inbound_ids)
+            if created is not None:
+                ok, failed = created
+        if not ok:
+            ok, failed = await self._create_client_via_legacy_per_inbound(
+                telegram_id=telegram_id,
+                client_uuid=client_uuid,
+                sub_id=sub_id,
+                expiry_ts_ms=expiry_ts_ms,
+                total_bytes=total_bytes,
+                limit_ip=limit_ip,
+                inbound_ids=inbound_ids,
+                logical_label=logical_label,
+            )
 
         if not ok:
             err = failed[0][1] if failed else "no inbounds"
@@ -323,38 +449,33 @@ class ThreeXUIClient:
             subscription_json_url = None
 
         link_inbound = ok[0]
-        link_obj = await self._get_inbound(link_inbound)
-        link_remark = str((link_obj or {}).get("remark") or "").strip()
-        email_on_link_inbound = self._pretty_inbound_client_email(
-            link_remark, link_inbound, sub_tag
-        )
         config_text = await self._fetch_config_from_subscription(subscription_url)
         if not config_text:
             config_text = await self._build_client_link_from_inbound(
                 inbound_id=link_inbound,
                 client_uuid=client_uuid,
-                client_email=email_on_link_inbound,
+                client_email=client_email,
             )
         if not config_text:
             server = self._config.vless_server
             port = self._config.vless_port
             if server and port is not None:
-                config_text = f"vless://{client_uuid}@{server}:{port}#{display_label}"
+                config_text = f"vless://{client_uuid}@{server}:{port}#{logical_label}"
             else:
-                config_text = f"Подписка: {display_label} (панель 3x-ui)"
-        config_text = self._apply_display_name_to_config(config_text, display_label) or config_text
+                config_text = f"Подписка: {logical_label} (панель 3x-ui)"
+        config_text = self._apply_display_name_to_config(config_text, logical_label) or config_text
 
         return ThreeXUIClientInfo(
             client_id=client_uuid,
             config_text=config_text,
-            remark=display_label,
+            remark=logical_label,
             sub_id=sub_id,
+            client_email=client_email,
             subscription_url=subscription_url,
             subscription_json_url=subscription_json_url,
             provisioned_inbound_ids=ok,
             failed_inbounds=failed,
         )
-
     async def create_trial_client_all_inbounds(
         self,
         telegram_id: int,
@@ -367,8 +488,7 @@ class ThreeXUIClient:
         Один логический trial: один и тот же Xray client id (UUID) и один subId на всех inbounds,
         чтобы одна ссылка подписки тянула все узлы.
 
-        Email в 3x-ui должен быть уникален на панели, поэтому на каждый inbound свой email
-        (суффикс inbound id + фрагмент subId), иначе addClient даёт Duplicate email.
+        Один email и один subId на все inbound (DE, NL и др.) через API clients/add.
         """
         expiry_ts_ms = int((time.time() + expire_days * 24 * 60 * 60) * 1000)
         total_bytes = 0 if total_gb <= 0 else int(total_gb) * (1024**3)
@@ -379,15 +499,24 @@ class ThreeXUIClient:
             limit_ip=limit_ip,
         )
 
-    async def delete_client_uuid_from_all_inbounds(self, client_uuid: str) -> None:
-        """Удалить клиента по UUID из всех включённых inbound (игнор ошибок «уже нет»)."""
+    async def delete_client_uuid_from_all_inbounds(
+        self,
+        client_uuid: str,
+        *,
+        client_email: str | None = None,
+    ) -> None:
+        """Удалить клиента с панели (v3.1.0+ — по email, иначе по UUID в каждом inbound)."""
         cu = str(client_uuid).strip()
-        if not cu:
+        email = str(client_email or "").strip()
+        if not cu and not email:
             return
         await self._ensure_login()
-        ids = await self.list_inbound_ids(only_enabled=True)
-        if not ids:
-            ids = [self._config.inbound_id]
+        if email and await self._probe_new_client_api():
+            if await self._delete_client_by_email(email):
+                return
+        if not cu:
+            return
+        ids = await self._resolve_target_inbound_ids()
         safe_id = urllib.parse.quote(cu, safe="-_")
         for iid in ids:
             try:
@@ -405,20 +534,32 @@ class ThreeXUIClient:
                     )
             except Exception:
                 logger.debug("3x-ui delClient inbound=%s пропущен", iid, exc_info=True)
-
-    async def collect_client_quota_snapshot(self, client_uuid: str) -> Optional[tuple[int, int, int]]:
+    async def collect_client_quota_snapshot(
+        self,
+        client_uuid: str,
+        *,
+        client_email: str | None = None,
+    ) -> Optional[tuple[int, int, int]]:
         """
-        По UUID ищет клиента во включённых inbounds.
-        Возвращает (expiry_ts_ms, limit_total_bytes, used_bytes) или None.
-        used_bytes — максимум по inbounds (без суммирования дублей).
+        (expiry_ts_ms, limit_total_bytes, used_bytes) или None.
+        На новых панелях — трафик по email; иначе поиск UUID по inbound.
         """
         cu = str(client_uuid).strip().lower()
+        email = str(client_email or "").strip()
+        await self._ensure_login()
+        if email and await self._probe_new_client_api():
+            traffic = await self._get_client_traffics_by_email(email)
+            if traffic:
+                up = int(traffic.get("up") or 0)
+                down = int(traffic.get("down") or 0)
+                total = int(traffic.get("total") or 0)
+                used = total if total > 0 else up + down
+                exp_ms = int(traffic.get("expiryTime") or 0)
+                limit_b = int(traffic.get("totalGB") or traffic.get("totalGb") or 0)
+                return (exp_ms, limit_b, used)
         if not cu:
             return None
-        await self._ensure_login()
-        ids = await self.list_inbound_ids(only_enabled=True)
-        if not ids:
-            ids = [self._config.inbound_id]
+        ids = await self._resolve_target_inbound_ids()
         exp_ms = 0
         limit_b = 0
         used_max = 0
@@ -429,7 +570,7 @@ class ThreeXUIClient:
                 if not obj:
                     continue
                 for c in self._extract_clients(obj):
-                    if not self._client_row_matches_uuid(c, client_uuid):
+                    if str(c.get("id") or "").strip().lower() != cu:
                         continue
                     found = True
                     tb = int(c.get("totalGB") or 0)
@@ -447,7 +588,6 @@ class ThreeXUIClient:
         if not found:
             return None
         return (exp_ms, limit_b, used_max)
-
     async def _get_inbound(self, inbound_id: int) -> Optional[dict[str, Any]]:
         await self._ensure_login()
         for path in (f"/panel/api/inbounds/get/{inbound_id}", f"/panel/api/inbound/get/{inbound_id}"):
@@ -655,25 +795,46 @@ class ThreeXUIClient:
         if not obj:
             return None
         clients = self._extract_clients(obj)
-        target = next(
-            (c for c in clients if self._client_row_matches_uuid(c, client_uuid)),
-            None,
-        )
+        target = next((c for c in clients if c.get("id") == client_uuid), None)
         client_flow = str((target or {}).get("flow") or "").strip()
         return self._build_vless_from_inbound(obj, client_uuid, client_email, client_flow=client_flow)
 
-    async def trial_client_uuid_seen_on_panel(self, client_uuid: str) -> bool:
+    async def trial_client_uuid_seen_on_panel(
+        self,
+        client_uuid: str,
+        *,
+        client_email: str | None = None,
+    ) -> bool:
         """
-        True — клиент с этим UUID есть хотя бы в одном включённом inbound или панель недоступна
-        (не сбрасывать БД). False — успешно проверили inbounds, клиента нигде нет.
+        True — клиент есть на панели или проверить не удалось (не сбрасывать БД).
+        False — клиента точно нет.
         """
         cu = str(client_uuid).strip().lower()
-        if not cu:
+        email = str(client_email or "").strip()
+        if not cu and not email:
             return True
         await self._ensure_login()
-        ids = await self.list_inbound_ids(only_enabled=True)
-        if not ids:
-            ids = [self._config.inbound_id]
+        if await self._probe_new_client_api():
+            try:
+                resp = await self._client.get("/panel/api/clients/list", cookies=self._auth_cookies)
+                resp.raise_for_status()
+                body = resp.json()
+                rows = body.get("obj") if isinstance(body, dict) else None
+                if isinstance(rows, list):
+                    for row in rows:
+                        if not isinstance(row, dict):
+                            continue
+                        if email and str(row.get("email") or "").strip() == email:
+                            return True
+                        if cu and str(row.get("id") or "").strip().lower() == cu:
+                            return True
+                    return False
+            except Exception:
+                logger.debug("trial sync: clients/list недоступен", exc_info=True)
+                return True
+        if not cu:
+            return True
+        ids = await self._resolve_target_inbound_ids()
         saw_inbound_response = False
         for iid in ids:
             try:
@@ -682,7 +843,8 @@ class ThreeXUIClient:
                     continue
                 saw_inbound_response = True
                 for c in self._extract_clients(obj):
-                    if self._client_row_matches_uuid(c, client_uuid):
+                    cid = str(c.get("id") or "").strip().lower()
+                    if cid == cu:
                         return True
             except Exception:
                 logger.debug("trial sync: inbound %s недоступен", iid, exc_info=True)
@@ -690,6 +852,5 @@ class ThreeXUIClient:
         if not saw_inbound_response:
             return True
         return False
-
     async def close(self) -> None:
         await self._client.aclose()
