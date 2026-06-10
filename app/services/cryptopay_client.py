@@ -87,22 +87,21 @@ def invoice_payment_url(inv: dict[str, Any]) -> str | None:
     return None
 
 
-async def set_webhook(*, url: str) -> dict[str, Any]:
-    return await cryptopay_api_post("setWebhook", {"url": url})
-
-
-async def delete_webhook() -> dict[str, Any]:
-    return await cryptopay_api_post("deleteWebhook", {})
-
-
 async def sync_cryptopay_webhook_from_env() -> None:
-    """Вызывать при старте HTTP: Crypto Pay → setWebhook на CRYPTOPAY_WEBHOOK_PUBLIC_URL."""
-    url = (settings.cryptopay_webhook_public_url or "").strip()
-    if not url or not settings.cryptopay_api_configured():
+    """При старте HTTP: напомнить URL для ручной настройки в @CryptoBot (API setWebhook нет)."""
+    if not settings.cryptopay_api_configured():
         return
-    try:
-        await set_webhook(url=url)
-        logger.info("Crypto Pay: setWebhook зарегистрирован: %s", url)
-    except Exception:
-        logger.exception("Crypto Pay: setWebhook не удался")
+    url = (settings.cryptopay_webhook_public_url or "").strip()
+    path = settings.cryptopay_webhook_path
+    if url:
+        logger.info(
+            "Crypto Pay: в @CryptoBot → Crypto Pay → приложение → Webhooks укажите URL: %s",
+            url,
+        )
+    else:
+        logger.warning(
+            "Crypto Pay: задан CRYPTOPAY_API_TOKEN, но CRYPTOPAY_WEBHOOK_PUBLIC_URL пуст — "
+            "в @CryptoBot → Webhooks укажите публичный HTTPS URL (путь %s)",
+            path,
+        )
 
