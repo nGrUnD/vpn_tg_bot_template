@@ -63,11 +63,36 @@ def _parse_wata_error_body(response: httpx.Response) -> str | None:
     return " — ".join(parts) if parts else None
 
 
+def _wata_error_code(response: httpx.Response) -> str | None:
+    try:
+        data = response.json()
+        if isinstance(data, dict):
+            err = data.get("error")
+            if isinstance(err, dict):
+                code = err.get("code")
+                if code not in (None, ""):
+                    return str(code)
+    except Exception:
+        pass
+    return None
+
+
+_WATA_ERROR_HINTS: dict[str, str] = {
+    "Payment:MER_1004": (
+        "Аккаунт мерчанта заблокирован в WATA. "
+        "Обратитесь в поддержку или к личному менеджеру WATA — смена токена не поможет."
+    ),
+}
+
+
 def _raise_for_wata_response(response: httpx.Response, *, action: str) -> None:
     if response.status_code < 400:
         return
     details = _parse_wata_error_body(response)
-    if response.status_code == 401:
+    error_code = _wata_error_code(response)
+    if error_code and error_code in _WATA_ERROR_HINTS:
+        hint = _WATA_ERROR_HINTS[error_code]
+    elif response.status_code == 401:
         hint = (
             "WATA access token недействителен или истёк. "
             "Перевыпустите токен в merchant.wata.pro → Терминалы → ваш терминал."
