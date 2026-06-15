@@ -230,7 +230,6 @@ class Settings(BaseSettings):
         "iphone_instruction_url",
         "android_instruction_url",
         "payment_rub_checkout_url",
-        "wata_access_token",
         "cryptopay_api_token",
         "cryptopay_api_base",
         "cryptopay_webhook_public_url",
@@ -242,6 +241,20 @@ class Settings(BaseSettings):
             return None
         s = str(v).strip()
         return s if s else None
+
+    @field_validator("wata_access_token", mode="before")
+    @classmethod
+    def normalize_wata_access_token(cls, v: object) -> str | None:
+        if v is None:
+            return None
+        s = str(v).strip()
+        if not s:
+            return None
+        if s.lower().startswith("bearer "):
+            s = s[7:].strip()
+        if len(s) >= 2 and s[0] == s[-1] and s[0] in "\"'":
+            s = s[1:-1].strip()
+        return s or None
 
     @field_validator("wata_api_base", mode="before")
     @classmethod

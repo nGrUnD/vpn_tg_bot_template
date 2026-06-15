@@ -13,7 +13,7 @@ from app.config import settings
 from app.db import close_db, init_db
 from app.handlers import root_router
 from app.services.cryptopay_client import aclose_cryptopay_http
-from app.services.wata_client import aclose_wata_http
+from app.services.wata_client import aclose_wata_http, probe_wata_api_access
 from app.wata_http import run_wata_webhook_server
 from app.middlewares import ChannelSubscriptionMiddleware, ThreexuiMiddleware
 from app.services.threexui_backends import (
@@ -112,6 +112,9 @@ async def _run() -> None:
             logger.warning(
                 "CRYPTOPAY: задан CRYPTOPAY_API_TOKEN, но HTTP_WEBHOOK_PORT=0 — оплаты Crypto Bot не завершатся в боте"
             )
+
+    if settings.wata_api_configured():
+        await probe_wata_api_access()
 
     http_task: asyncio.Task[None] | None = None
     if settings.payment_webhook_server_enabled():

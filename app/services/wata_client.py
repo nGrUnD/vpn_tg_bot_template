@@ -15,8 +15,78 @@ _public_key_lock = asyncio.Lock()
 _cached_public_key_pem: str | None = None
 
 
+class WataApiError(RuntimeError):
+    def __init__(self, status_code: int, message: str, *, details: str | None = None) -> None:
+        self.status_code = status_code
+        self.details = details
+        super().__init__(message)
+
+
 def _api_root() -> str:
     return (settings.wata_api_base or "").strip().rstrip("/")
+
+
+def _access_token() -> str:
+    token = (settings.wata_access_token or "").strip()
+    if not token:
+        raise RuntimeError("WATA_ACCESS_TOKEN не задан")
+    return token
+
+
+def _auth_headers() -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {_access_token()}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+
+def _parse_wata_error_body(response: httpx.Response) -> str | None:
+    try:
+        data = response.json()
+    except Exception:
+        text = (response.text or "").strip()
+        return text[:500] if text else None
+    if not isinstance(data, dict):
+        return None
+    err = data.get("error")
+    if not isinstance(err, dict):
+        return None
+    parts: list[str] = []
+    for key in ("message", "details", "code"):
+        value = err.get(key)
+        if value not in (None, ""):
+            parts.append(str(value))
+    validation = err.get("validationErrors")
+    if validation:
+        parts.append(str(validation))
+    return " — ".join(parts) if parts else None
+
+
+def _raise_for_wata_response(response: httpx.Response, *, action: str) -> None:
+    if response.status_code < 400:
+        return
+    details = _parse_wata_error_body(response)
+    if response.status_code == 401:
+        hint = (
+            "WATA access token недействителен или истёк. "
+            "Перевыпустите токен в merchant.wata.pro → Терминалы → ваш терминал."
+        )
+    elif response.status_code == 403:
+        hint = (
+            "WATA access token не имеет доступа к этому методу API. "
+            "Проверьте: в .env указан Access token (не Secret Key), "
+            "WATA_API_BASE совпадает с окружением токена "
+            "(боевой https://api.wata.pro/api/h2h или песочница https://api-sandbox.wata.pro/api/h2h), "
+            "токен создан для терминала с продуктом Эквайринг/H2H."
+        )
+    else:
+        hint = f"WATA {action} завершился с HTTP {response.status_code}"
+    message = f"{hint} URL={response.request.url}"
+    if details:
+        message = f"{message}. Ответ: {details}"
+    logger.error(message)
+    raise WataApiError(response.status_code, message, details=details)
 
 
 async def _client() -> httpx.AsyncClient:
@@ -51,7 +121,7 @@ async def fetch_public_key_pem() -> str:
     root = _api_root()
     url = f"{root}/public-key"
     client = await _client()
-    r = await client.get(url, headers={"Content-Type": "application/json"})
+    r = await client.get(url, headers={"Content-Type": "application/json", "Accept": "application/json"})
     r.raise_for_status()
     data = r.json()
     if not isinstance(data, dict):
@@ -62,6 +132,31 @@ async def fetch_public_key_pem() -> str:
     return value.strip()
 
 
+async def probe_wata_api_access() -> None:
+    """Проверка access token при старте (GET /links, без создания платежа)."""
+    if not settings.wata_api_configured():
+        return
+    root = _api_root()
+    url = f"{root}/links"
+    client = await _client()
+    try:
+        r = await client.get(
+            url,
+            params={"maxResultCount": 1},
+            headers=_auth_headers(),
+        )
+    except httpx.HTTPError:
+        logger.exception("WATA: не удалось связаться с API (%s)", url)
+        return
+    if r.status_code < 400:
+        logger.info("WATA API: access token принят (%s)", root)
+        return
+    try:
+        _raise_for_wata_response(r, action="проверка access token")
+    except WataApiError:
+        return
+
+
 async def create_payment_link(
     *,
     amount: float,
@@ -70,33 +165,28 @@ async def create_payment_link(
     description: str | None = None,
     link_type: str = "OneTime",
 ) -> dict[str, Any]:
-    token = (settings.wata_access_token or "").strip()
-    if not token:
-        raise RuntimeError("WATA_ACCESS_TOKEN не задан")
-
     root = _api_root()
     url = f"{root}/links"
+    value = round(float(amount), 2)
+    if currency.upper() == "RUB" and value < 10:
+        raise WataApiError(
+            400,
+            "WATA: минимальная сумма платежа 10 RUB",
+            details=f"amount={value}",
+        )
+
     body: dict[str, Any] = {
         "type": link_type,
-        "amount": round(float(amount), 2),
-        "currency": currency,
+        "amount": value,
+        "currency": currency.upper(),
         "orderId": order_id,
     }
     if description:
         body["description"] = description
 
     client = await _client()
-    r = await client.post(
-        url,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        },
-        json=body,
-    )
-    if r.status_code >= 400:
-        logger.warning("WATA create link HTTP %s: %s", r.status_code, r.text[:500])
-    r.raise_for_status()
+    r = await client.post(url, headers=_auth_headers(), json=body)
+    _raise_for_wata_response(r, action="создание платёжной ссылки")
     data = r.json()
     if not isinstance(data, dict):
         raise ValueError("create link: некорректный JSON")

@@ -10,7 +10,7 @@ from app import texts
 from app.config import settings
 from app.services import rub_orders
 from app.services.buy_access_screen import apply_buy_rub_payment_screen
-from app.services.wata_client import create_payment_link
+from app.services.wata_client import WataApiError, create_payment_link
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,13 @@ async def open_buy_rub_payment_after_promo(
             description=f"VPN {months} мес.",
             link_type="OneTime",
         )
+    except WataApiError as exc:
+        logger.error("WATA: create_payment_link: %s", exc)
+        await rub_orders.delete_pending_order(order_id)
+        await apply_buy_rub_payment_screen(
+            query, bot, months=months, back_to=back_to, pay_url=None
+        )
+        return texts.WATA_CREATE_LINK_FAILED_ALERT
     except Exception:
         logger.exception("WATA: create_payment_link")
         await rub_orders.delete_pending_order(order_id)
